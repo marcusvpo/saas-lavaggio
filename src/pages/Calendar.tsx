@@ -99,13 +99,22 @@ export function Calendar() {
   const dayExpenses = expenses.filter((e) => e.due_date === selectedDateStr);
   const dayRevenues = revenues.filter((r) => r.date === selectedDateStr);
 
-  // Highlight dates that have data
-  const datesWithExpenses = new Set(
-    expenses.map((e) => new Date(e.due_date + "T12:00:00").toDateString()),
-  );
-  const datesWithRevenues = new Set(
-    revenues.map((r) => new Date(r.date + "T12:00:00").toDateString()),
-  );
+  // Compute net balance per day for coloring
+  const dayNetMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of revenues) {
+      const key = r.date;
+      map.set(key, (map.get(key) || 0) + Number(r.total_amount));
+    }
+    for (const e of expenses) {
+      const key = e.due_date;
+      map.set(key, (map.get(key) || 0) - Number(e.amount));
+    }
+    return map;
+  }, [revenues, expenses]);
+
+  const getDayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // Monthly totals
   const totalExpMonth = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
@@ -189,12 +198,18 @@ export function Calendar() {
               locale={ptBR}
               className="rounded-md border shadow"
               modifiers={{
-                hasExpense: (d) => datesWithExpenses.has(d.toDateString()),
-                hasRevenue: (d) => datesWithRevenues.has(d.toDateString()),
+                dayPositive: (d) => {
+                  const net = dayNetMap.get(getDayKey(d));
+                  return net !== undefined && net > 0;
+                },
+                dayNegative: (d) => {
+                  const net = dayNetMap.get(getDayKey(d));
+                  return net !== undefined && net < 0;
+                },
               }}
               modifiersClassNames={{
-                hasExpense: "bg-red-100 text-red-700 font-bold",
-                hasRevenue: "bg-emerald-100 text-emerald-700 font-bold",
+                dayPositive: "bg-emerald-100 text-emerald-700 font-bold",
+                dayNegative: "bg-red-100 text-red-700 font-bold",
               }}
             />
           </CardContent>

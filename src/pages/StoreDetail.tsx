@@ -69,6 +69,7 @@ export function StoreDetail() {
   const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [marginTarget, setMarginTarget] = useState<number>(20);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,7 +78,6 @@ export function StoreDetail() {
   // Revenue fields
   const [revDate, setRevDate] = useState("");
   const [revTotalAmount, setRevTotalAmount] = useState("");
-  const [revPaidAmount, setRevPaidAmount] = useState("");
   const [revPieces, setRevPieces] = useState("");
 
   // Expense fields
@@ -124,6 +124,26 @@ export function StoreDetail() {
         .lte("due_date", dateFilter.end)
         .order("due_date", { ascending: false });
       if (expData) setExpenses(expData);
+
+      // Fetch margin target: store-specific goal first, then platform default
+      const { data: goalData } = await supabase
+        .from("goals")
+        .select("value")
+        .eq("type", "margin_target")
+        .eq("store_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (goalData) {
+        setMarginTarget(Number(goalData.value));
+      } else {
+        // Fallback to global default
+        const { data: settingData } = await supabase
+          .from("platform_settings")
+          .select("value")
+          .eq("key", "default_margin_target")
+          .maybeSingle();
+        if (settingData) setMarginTarget(Number(settingData.value));
+      }
     } catch (error) {
       console.error("Error fetching store data:", error);
     } finally {
@@ -144,18 +164,14 @@ export function StoreDetail() {
     try {
       if (entryType === "receita") {
         const totalAmount = parseFloat(revTotalAmount);
-        const paidAmount = revPaidAmount
-          ? parseFloat(revPaidAmount)
-          : totalAmount;
-        const unpaidAmount = totalAmount - paidAmount;
 
         const { error } = await supabase.from("revenues").insert([
           {
             store_id: id,
             date: revDate,
             total_amount: totalAmount,
-            paid_amount: paidAmount,
-            unpaid_amount: unpaidAmount < 0 ? 0 : unpaidAmount,
+            paid_amount: totalAmount,
+            unpaid_amount: 0,
             pieces_count: revPieces ? parseInt(revPieces) : 0,
           },
         ]);
@@ -180,7 +196,6 @@ export function StoreDetail() {
       // Reset
       setRevDate("");
       setRevTotalAmount("");
-      setRevPaidAmount("");
       setRevPieces("");
       setExpDate("");
       setExpAmount("");
@@ -412,7 +427,9 @@ export function StoreDetail() {
                 {margin.toFixed(1)}%
               </p>
             </div>
-            <span className="text-xs text-muted-foreground">Meta: 20%</span>
+            <span className="text-xs text-muted-foreground">
+              Meta: {marginTarget}%
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -669,42 +686,16 @@ export function StoreDetail() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Faturamento Dia (R$) *</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0,00"
-                        value={revTotalAmount}
-                        onChange={(e) => setRevTotalAmount(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Recebido Dia (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="Se vazio = total"
-                        value={revPaidAmount}
-                        onChange={(e) => setRevPaidAmount(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[11px] text-amber-600 font-medium">
-                      Não Pago Dia:{" "}
-                      {revTotalAmount && revPaidAmount
-                        ? fmt(
-                            Math.max(
-                              0,
-                              parseFloat(revTotalAmount) -
-                                parseFloat(revPaidAmount),
-                            ),
-                          )
-                        : "Automático"}
-                    </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Faturamento Dia (R$) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0,00"
+                      value={revTotalAmount}
+                      onChange={(e) => setRevTotalAmount(e.target.value)}
+                      required
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">N° de Peças</Label>
