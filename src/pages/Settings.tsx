@@ -109,9 +109,10 @@ export function Settings() {
   const [users, setUsers] = useState<
     {
       id: string;
+      email: string;
       role: string;
       store_id: string | null;
-      stores: { name: string } | null;
+      store_name: string | null;
     }[]
   >([]);
 
@@ -150,24 +151,23 @@ export function Settings() {
      ========================= */
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("id, role, store_id, stores(name)");
-    if (data && !error) {
-      const typedData = data.map(
-        (d: {
-          id: string;
-          role: string;
-          store_id: string | null;
-          stores: { name: string } | { name: string }[] | null;
-        }) => ({
-          id: d.id,
-          role: d.role,
-          store_id: d.store_id,
-          stores: Array.isArray(d.stores) ? d.stores[0] : d.stores,
-        }),
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-users`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+        },
       );
-      setUsers(typedData);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.users) setUsers(result.users);
+      }
+    } catch (err) {
+      console.error("Error fetching users:", err);
     }
   };
 
@@ -245,6 +245,7 @@ export function Settings() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
             email,
@@ -273,14 +274,35 @@ export function Settings() {
 
   const handleDeleteUser = async (userId: string) => {
     if (
-      !window.confirm("Deseja revogar o acesso deste usuário (remover role)?")
+      !window.confirm("Deseja revogar o acesso deste usuário (remover conta)?")
     )
       return;
-    const { error } = await supabase
-      .from("user_roles")
-      .delete()
-      .eq("id", userId);
-    if (!error) fetchUsers();
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ userId }),
+        },
+      );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Erro ao excluir usuário.");
+      }
+      fetchUsers();
+    } catch (err: unknown) {
+      if (err instanceof Error) alert(err.message);
+      else alert("Ocorreu um erro ao excluir o usuário.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /* =========================
@@ -559,15 +581,11 @@ export function Settings() {
                         className="flex items-center justify-between p-3 border border-border rounded-lg"
                       >
                         <div>
-                          <p className="font-semibold text-sm">
-                            ID: {u.id.substring(0, 8)}...
-                          </p>
+                          <p className="font-semibold text-sm">{u.email}</p>
                           <p className="text-xs text-muted-foreground">
                             Papel:{" "}
                             {u.role === "admin" ? "Administrador" : "Cliente"}
-                            {u.store_id && u.stores
-                              ? ` - Loja: ${u.stores.name}`
-                              : ""}
+                            {u.store_name ? ` - Loja: ${u.store_name}` : ""}
                           </p>
                         </div>
                         {u.id !== session?.user.id && (
