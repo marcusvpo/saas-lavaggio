@@ -5,6 +5,7 @@ import {
   Store,
   CalendarDays,
   Factory,
+  Package,
   Settings,
   LogOut,
   ChevronLeft,
@@ -57,6 +58,11 @@ export function Sidebar() {
       name: "Calendário",
       path: "/calendar",
       icon: <CalendarDays className="w-5 h-5 shrink-0" />,
+    },
+    {
+      name: "Estoque",
+      path: "/inventory",
+      icon: <Package className="w-5 h-5 shrink-0" />,
     },
     {
       name: "Configurações",

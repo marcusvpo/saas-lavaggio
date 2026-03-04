@@ -7,6 +7,8 @@ import { Calendar } from "@/pages/Calendar";
 import { StoreDetail } from "@/pages/StoreDetail";
 import { Sofn } from "@/pages/Sofn";
 import { Settings } from "@/pages/Settings";
+import { Inventory } from "@/pages/Inventory";
+import { StoreInventory } from "@/pages/StoreInventory";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
@@ -24,8 +26,10 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="stores" element={<Stores />} />
               <Route path="stores/:id" element={<StoreDetail />} />
+              <Route path="stores/:id/inventory" element={<StoreInventory />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="sofn" element={<Sofn />} />
+              <Route path="inventory" element={<Inventory />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Route>

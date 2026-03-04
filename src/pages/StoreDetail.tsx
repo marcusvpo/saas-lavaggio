@@ -17,6 +17,7 @@ import {
   Trash2,
   AlertCircle,
   Calendar,
+  Package,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,9 @@ export function StoreDetail() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [marginTarget, setMarginTarget] = useState<number>(20);
+  const [expCategories, setExpCategories] = useState<
+    { id: string; name: string; type: string }[]
+  >([]);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -95,6 +99,19 @@ export function StoreDetail() {
 
   const [dateRange, setDateRange] = useDateFilter();
   const dateFilter = useMemo(() => dateRangeToFilter(dateRange), [dateRange]);
+
+  // Fetch expense categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      const { data } = await supabase
+        .from("expense_categories")
+        .select("id, name, type")
+        .eq("is_active", true)
+        .order("name");
+      if (data) setExpCategories(data);
+    }
+    loadCategories();
+  }, []);
 
   const fetchStoreData = useCallback(async () => {
     try {
@@ -325,6 +342,12 @@ export function StoreDetail() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateFilter value={dateRange} onChange={setDateRange} />
+          <Button variant="outline" asChild className="gap-2">
+            <Link to={`/stores/${id}/inventory`}>
+              <Package className="w-4 h-4" />
+              Estoque
+            </Link>
+          </Button>
           <Button
             onClick={() => {
               setModalOpen(true);
@@ -712,12 +735,33 @@ export function StoreDetail() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Categoria *</Label>
-                      <Input
-                        placeholder="Ex: Conta de luz"
+                      <Select
                         value={expCategory}
-                        onChange={(e) => setExpCategory(e.target.value)}
+                        onValueChange={setExpCategory}
                         required
-                      />
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {expCategories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.name}>
+                              <span className="flex items-center gap-2">
+                                {cat.name}
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    cat.type === "fixed"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-cyan-100 text-cyan-700"
+                                  }`}
+                                >
+                                  {cat.type === "fixed" ? "Fixo" : "Variável"}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Valor (R$) *</Label>
