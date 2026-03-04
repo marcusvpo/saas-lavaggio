@@ -1,0 +1,67 @@
+
+--- Analysis for c:\Users\marcu\OneDrive\Área de Trabalho\Projetos\saas-lavaggio\assets\Contas a pagar - 2026.xlsx ---
+Columns: [3, 'Unnamed: 1', 'Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4', 'Unnamed: 5']
+Data Types:
+3                str
+Unnamed: 1    object
+Unnamed: 2    object
+Unnamed: 3       str
+Unnamed: 4       str
+Unnamed: 5       str
+First 3 Rows:
+     3 Unnamed: 1                      Unnamed: 2                             Unnamed: 3                      Unnamed: 4                             Unnamed: 5
+0  NaN      Local                      Neoenergia  É possível alterar para o nosso nome?                           Caesb  É possível alterar para o nosso nome?
+1  NaN        202          Ana Neri Machado Rolim           Sim. Mudar para PF - Kananda          Ana Neri Machado Rolim           Sim. Mudar para PF - Kananda
+2  NaN        213  Fiestaseco Serv. de Lavanderia     Não. Não temos contrato de locação  Eduardo de Souza e Albuquerque     Não. Não temos contrato de locação
+
+--- Analysis for c:\Users\marcu\OneDrive\Área de Trabalho\Projetos\saas-lavaggio\assets\Faturamento Lavaggio 2026.xlsx ---
+Columns: ['Unnamed: 0', 'Dia ', 'Lojas ', 'Faturamento dia ', 'Não pago dia ', 'Recebido dia', 'Não pago Acumulado', 'Peças ', 'Dia .1', 'Lojas .1', 'Faturamento ', 'Não pago dia .1', 'Recebido dia.1', 'Não pago Acumulado.1', 'Peças .1', 'Dia .2', 'Lojas .2', 'Faturamento .1', 'Não pago dia .2', 'Recebido dia.2', 'Não pago Acumulado.2', 'Peças .2', 'Dia .3', 'Lojas .3', 'Faturamento .2', 'Não pago dia .3', 'Recebido dia.3', 'Não pago Acumulado.3', 'Peças .3', 'Dia .4', 'Lojas .4', 'Faturamento .3', 'Não pago dia .4', 'Recebido dia.4', 'Não pago Acumulado.4', 'Peças .4', 'Unnamed: 36', 'Unnamed: 37', 'Lojas .5', 'Faturamento .4', 'Não pago dia .5', 'Recebido', 'Peças .5']
+Data Types:
+Unnamed: 0                  str
+Dia                      object
+Lojas                    object
+Faturamento dia          object
+Não pago dia             object
+Recebido dia             object
+Não pago Acumulado       object
+Peças                    object
+Dia .1                   object
+Lojas .1                 object
+Faturamento              object
+Não pago dia .1          object
+Recebido dia.1           object
+Não pago Acumulado.1     object
+Peças .1                 object
+Dia .2                   object
+Lojas .2                 object
+Faturamento .1           object
+Não pago dia .2          object
+Recebido dia.2           object
+Não pago Acumulado.2     object
+Peças .2                 object
+Dia .3                   object
+Lojas .3                 object
+Faturamento .2           object
+Não pago dia .3          object
+Recebido dia.3           object
+Não pago Acumulado.3     object
+Peças .3                 object
+Dia .4                   object
+Lojas .4                 object
+Faturamento .3           object
+Não pago dia .4          object
+Recebido dia.4           object
+Não pago Acumulado.4     object
+Peças .4                 object
+Unnamed: 36             float64
+Unnamed: 37                 str
+Lojas .5                    str
+Faturamento .4           object
+Não pago dia .5          object
+Recebido                 object
+Peças .5                 object
+First 3 Rows:
+       Unnamed: 0 Dia        Lojas  Faturamento dia  Não pago dia  Recebido dia Não pago Acumulado Peças                Dia .1     Lojas .1 Faturamento  Não pago dia .1 Recebido dia.1 Não pago Acumulado.1 Peças .1               Dia .2     Lojas .2 Faturamento .1 Não pago dia .2 Recebido dia.2 Não pago Acumulado.2 Peças .2               Dia .3     Lojas .3 Faturamento .2 Não pago dia .3 Recebido dia.3 Não pago Acumulado.3 Peças .3               Dia .4     Lojas .4 Faturamento .3 Não pago dia .4 Recebido dia.4 Não pago Acumulado.4 Peças .4  Unnamed: 36                             Unnamed: 37     Lojas .5 Faturamento .4 Não pago dia .5 Recebido Peças .5
+0  Segunda-feira   NaN  Lago Norte               NaN           NaN          NaN                NaN    NaN  2025-01-05 00:00:00  Lago Norte        1111.6           267.7          843.9              2401.14       42  2025-01-12 00:00:00  Lago Norte           907.3               0        1065.79              1003.75       29  2025-01-19 00:00:00  Lago Norte           812.6               0        1415.35                  597       35  2025-01-26 00:00:00  Lago Norte          1510.1            41.2         1594.9               1009.2       49          NaN  Faturamento Total das Segundas-feiras   Lago Norte          4341.6           308.9  4919.94      155
+1             NaN  NaN   202 Norte               NaN           NaN          NaN                NaN    NaN                  NaN   202 Norte          1787             267         1770.9                813.7       47                  NaN   202 Norte           316.9             184          132.9               1423.6       23                  NaN   202 Norte             841              18            823               1401.5       46                  NaN   202 Norte          1543.8          1127.8          470.9               2626.4       73          NaN                                     NaN   202 Norte          4488.7          1596.8   3197.7      189
+2             NaN  NaN    213 / Sof              NaN           NaN          NaN                NaN    NaN                  NaN    213 / Sof          NaN             NaN            NaN                  NaN      NaN                  NaN   213 Norte             NaN             NaN            NaN                  NaN      NaN                  NaN   213 Norte             NaN             NaN            NaN                  NaN      NaN                  NaN   213 Norte             NaN             NaN            NaN                  NaN      NaN          NaN                                     NaN   213 Norte               0               0        0        0
