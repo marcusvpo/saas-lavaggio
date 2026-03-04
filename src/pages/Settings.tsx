@@ -150,7 +150,7 @@ export function Settings() {
      Data fetching
      ========================= */
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-users`,
@@ -169,12 +169,12 @@ export function Settings() {
     } catch (err) {
       console.error("Error fetching users:", err);
     }
-  };
+  }, [session?.access_token]);
 
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     const { data } = await supabase.from("stores").select("id, name");
     if (data) setStores(data);
-  };
+  }, []);
 
   const fetchParametrizations = useCallback(async () => {
     setParamLoading(true);
@@ -228,7 +228,7 @@ export function Settings() {
       fetchUsers();
       fetchParametrizations();
     }
-  }, [role, fetchParametrizations]);
+  }, [role, fetchStores, fetchUsers, fetchParametrizations]);
 
   /* =========================
      User management handlers
