@@ -10,6 +10,7 @@ import { Settings } from "@/pages/Settings";
 import { Inventory } from "@/pages/Inventory";
 import { StoreInventory } from "@/pages/StoreInventory";
 import { StoreComparator } from "@/pages/StoreComparator";
+import { Transfers } from "@/pages/Transfers";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PrivateRoute } from "@/components/PrivateRoute";
@@ -30,6 +31,7 @@ function App() {
               <Route path="stores/:id/inventory" element={<StoreInventory />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="comparator" element={<StoreComparator />} />
+              <Route path="transfers" element={<Transfers />} />
               <Route path="sofn" element={<Sofn />} />
               <Route path="inventory" element={<Inventory />} />
               <Route path="settings" element={<Settings />} />

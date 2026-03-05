@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  role: "admin" | "client" | null;
+  role: "admin" | "client" | "inventory_only" | null;
   storeId: string | null;
   signOut: () => Promise<void>;
   isLoading: boolean;
@@ -23,7 +23,9 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<"admin" | "client" | null>(null);
+  const [role, setRole] = useState<
+    "admin" | "client" | "inventory_only" | null
+  >(null);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setRole(data?.role as "admin" | "client");
+      setRole(data?.role as "admin" | "client" | "inventory_only");
       setStoreId(data?.store_id);
     } catch (error) {
       console.error("Erro ao buscar papel do usuário:", error);

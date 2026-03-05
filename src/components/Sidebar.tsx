@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   BarChart3,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -26,7 +27,7 @@ interface SidebarStore {
 }
 
 export function Sidebar() {
-  const { user, role, signOut } = useAuth();
+  const { user, role, storeId, signOut } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [stores, setStores] = useState<SidebarStore[]>([]);
@@ -45,36 +46,49 @@ export function Sidebar() {
   }, []);
 
   const mainMenus = [
-    {
-      name: "Dashboard",
-      path: "/",
-      icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
-    },
-    {
-      name: "SOFN (Central)",
-      path: "/sofn",
-      icon: <Factory className="w-5 h-5 shrink-0" />,
-    },
-    {
-      name: "Calendário",
-      path: "/calendar",
-      icon: <CalendarDays className="w-5 h-5 shrink-0" />,
-    },
-    {
-      name: "Comparador",
-      path: "/comparator",
-      icon: <BarChart3 className="w-5 h-5 shrink-0" />,
-    },
+    ...(role !== "inventory_only"
+      ? [
+          {
+            name: "Dashboard",
+            path: "/",
+            icon: <LayoutDashboard className="w-5 h-5 shrink-0" />,
+          },
+          {
+            name: "SOFN (Central)",
+            path: "/sofn",
+            icon: <Factory className="w-5 h-5 shrink-0" />,
+          },
+          {
+            name: "Calendário",
+            path: "/calendar",
+            icon: <CalendarDays className="w-5 h-5 shrink-0" />,
+          },
+          {
+            name: "Comparador",
+            path: "/comparator",
+            icon: <BarChart3 className="w-5 h-5 shrink-0" />,
+          },
+          {
+            name: "Transferências",
+            path: "/transfers",
+            icon: <ArrowLeftRight className="w-5 h-5 shrink-0" />,
+          },
+        ]
+      : []),
     {
       name: "Estoque",
       path: "/inventory",
       icon: <Package className="w-5 h-5 shrink-0" />,
     },
-    {
-      name: "Configurações",
-      path: "/settings",
-      icon: <Settings className="w-5 h-5 shrink-0" />,
-    },
+    ...(role !== "inventory_only"
+      ? [
+          {
+            name: "Configurações",
+            path: "/settings",
+            icon: <Settings className="w-5 h-5 shrink-0" />,
+          },
+        ]
+      : []),
   ];
 
   const linkClass = (isActive: boolean) =>
@@ -157,22 +171,30 @@ export function Sidebar() {
 
         {/* Store Links */}
         {(storesOpen || collapsed) &&
-          stores.map((store) => (
-            <NavLink
-              key={store.id}
-              to={`/stores/${store.id}`}
-              className={({ isActive }) => linkClass(isActive)}
-              onClick={() => setMobileOpen(false)}
-              title={store.name}
-            >
-              <div className="w-5 h-5 shrink-0 rounded bg-white/15 flex items-center justify-center text-[10px] font-bold text-white/80">
-                {store.name.charAt(0)}
-              </div>
-              {!collapsed && (
-                <span className="text-sm truncate">{store.name}</span>
-              )}
-            </NavLink>
-          ))}
+          stores
+            .filter(
+              (store) => role !== "inventory_only" || store.id === storeId,
+            )
+            .map((store) => (
+              <NavLink
+                key={store.id}
+                to={
+                  role === "inventory_only"
+                    ? `/stores/${store.id}/inventory`
+                    : `/stores/${store.id}`
+                }
+                className={({ isActive }) => linkClass(isActive)}
+                onClick={() => setMobileOpen(false)}
+                title={store.name}
+              >
+                <div className="w-5 h-5 shrink-0 rounded bg-white/15 flex items-center justify-center text-[10px] font-bold text-white/80">
+                  {store.name.charAt(0)}
+                </div>
+                {!collapsed && (
+                  <span className="text-sm truncate">{store.name}</span>
+                )}
+              </NavLink>
+            ))}
       </nav>
 
       {/* User footer */}

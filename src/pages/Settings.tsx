@@ -340,7 +340,10 @@ export function Settings() {
             email,
             password,
             role: targetRole,
-            store_id: targetRole === "client" ? targetStore || null : null,
+            store_id:
+              targetRole === "client" || targetRole === "inventory_only"
+                ? targetStore || null
+                : null,
           }),
         },
       );
@@ -579,15 +582,13 @@ export function Settings() {
         .select();
       // Also create a delay rule for the new method
       if (data && data[0]) {
-        await supabase
-          .from("payment_delay_rules")
-          .insert([
-            {
-              payment_method_id: data[0].id,
-              delay_days: null,
-              description: "Configurar dias de delay",
-            },
-          ]);
+        await supabase.from("payment_delay_rules").insert([
+          {
+            payment_method_id: data[0].id,
+            delay_days: null,
+            description: "Configurar dias de delay",
+          },
+        ]);
       }
     }
     setPmModalOpen(false);
@@ -805,12 +806,19 @@ export function Settings() {
                         <SelectItem value="client">
                           Cliente / Gerente de Loja
                         </SelectItem>
+                        <SelectItem value="inventory_only">
+                          Apenas Estoque (Unidade Específica)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {targetRole === "client" && (
+                  {(targetRole === "client" ||
+                    targetRole === "inventory_only") && (
                     <div className="space-y-2">
-                      <Label>Atribuir a qual Loja? (Apenas para Cliente)</Label>
+                      <Label>
+                        Atribuir a qual Loja? (Apenas para{" "}
+                        {targetRole === "client" ? "Cliente" : "Estoque"})
+                      </Label>
                       <Select
                         value={targetStore}
                         onValueChange={setTargetStore}
@@ -862,8 +870,11 @@ export function Settings() {
                         <div>
                           <p className="font-semibold text-sm">{u.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            Papel:{" "}
-                            {u.role === "admin" ? "Administrador" : "Cliente"}
+                            {u.role === "admin"
+                              ? "Administrador"
+                              : u.role === "inventory_only"
+                                ? "Apenas Estoque"
+                                : "Cliente"}
                             {u.store_name ? ` - Loja: ${u.store_name}` : ""}
                           </p>
                         </div>

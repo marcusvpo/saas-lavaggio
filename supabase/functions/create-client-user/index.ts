@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck: Missing types for Deno imports
-import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.6";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +62,16 @@ serve(async (req) => {
       );
     }
 
+    if ((role === "client" || role === "inventory_only") && !store_id) {
+      return new Response(
+        JSON.stringify({ error: "Store ID is required for this role" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        },
+      );
+    }
+
     // Use Service Role to bypass RLS and create Auth user
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -96,7 +106,9 @@ serve(async (req) => {
         {
           id: newUserId,
           role: role,
-          store_id: role === "client" ? store_id : null,
+          store_id: (role === "client" || role === "inventory_only")
+            ? store_id
+            : null,
         },
       ]);
 

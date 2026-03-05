@@ -1,9 +1,10 @@
 import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function PrivateRoute() {
-  const { user, isLoading } = useAuth();
+  const { user, role, storeId, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -19,10 +20,27 @@ export function PrivateRoute() {
   }
 
   if (!user) {
-    // Se o usuário não estiver logado, redireciona para o login
     return <Navigate to="/login" replace />;
   }
 
-  // Se estiver logado, renderiza as rotas filhas
+  // Restrict routes for inventory_only role
+  if (role === "inventory_only") {
+    const isInventoryPage = location.pathname === "/inventory";
+    const isStoreInventoryPage = location.pathname.match(
+      /^\/stores\/.*\/inventory$/,
+    );
+
+    // For store inventory page, make sure they only access their assigned store
+    if (isStoreInventoryPage) {
+      const pathStoreId = location.pathname.split("/")[2];
+      if (pathStoreId !== storeId) {
+        return <Navigate to={`/stores/${storeId}/inventory`} replace />;
+      }
+    } else if (!isInventoryPage) {
+      // Anything else, redirect to their store inventory
+      return <Navigate to={`/stores/${storeId}/inventory`} replace />;
+    }
+  }
+
   return <Outlet />;
 }
