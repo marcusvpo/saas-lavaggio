@@ -16,7 +16,16 @@ import {
   dateRangeToFilter,
   dateRangeLabel,
 } from "@/lib/dateFilter";
-import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Expense {
   id: string;
@@ -52,6 +61,7 @@ export function Calendar() {
   const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedStore, setSelectedStore] = useState<string>("all");
 
   const fetchData = useCallback(async () => {
     try {
@@ -96,29 +106,46 @@ export function Calendar() {
     ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
     : "";
 
-  const dayExpenses = expenses.filter((e) => e.due_date === selectedDateStr);
-  const dayRevenues = revenues.filter((r) => r.date === selectedDateStr);
+  // Filter by store
+  const filteredExpenses =
+    selectedStore === "all"
+      ? expenses
+      : expenses.filter((e) => e.store_id === selectedStore);
+  const filteredRevenues =
+    selectedStore === "all"
+      ? revenues
+      : revenues.filter((r) => r.store_id === selectedStore);
+
+  const dayExpenses = filteredExpenses.filter(
+    (e) => e.due_date === selectedDateStr,
+  );
+  const dayRevenues = filteredRevenues.filter(
+    (r) => r.date === selectedDateStr,
+  );
 
   // Compute net balance per day for coloring
   const dayNetMap = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of revenues) {
+    for (const r of filteredRevenues) {
       const key = r.date;
       map.set(key, (map.get(key) || 0) + Number(r.total_amount));
     }
-    for (const e of expenses) {
+    for (const e of filteredExpenses) {
       const key = e.due_date;
       map.set(key, (map.get(key) || 0) - Number(e.amount));
     }
     return map;
-  }, [revenues, expenses]);
+  }, [filteredRevenues, filteredExpenses]);
 
   const getDayKey = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   // Monthly totals
-  const totalExpMonth = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
-  const totalRevMonth = revenues.reduce(
+  const totalExpMonth = filteredExpenses.reduce(
+    (acc, e) => acc + Number(e.amount),
+    0,
+  );
+  const totalRevMonth = filteredRevenues.reduce(
     (acc, r) => acc + Number(r.total_amount),
     0,
   );
@@ -134,7 +161,31 @@ export function Calendar() {
             {dateRangeLabel(dateRange)}
           </p>
         </div>
-        <DateFilter value={dateRange} onChange={setDateRange} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedStore} onValueChange={setSelectedStore}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Todas as lojas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Lojas</SelectItem>
+              {stores.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DateFilter value={dateRange} onChange={setDateRange} />
+          <Link to="/comparator">
+            <Button
+              variant="outline"
+              className="gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Comparador
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary cards */}

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -58,6 +59,11 @@ export function Sidebar() {
       name: "Calendário",
       path: "/calendar",
       icon: <CalendarDays className="w-5 h-5 shrink-0" />,
+    },
+    {
+      name: "Comparador",
+      path: "/comparator",
+      icon: <BarChart3 className="w-5 h-5 shrink-0" />,
     },
     {
       name: "Estoque",

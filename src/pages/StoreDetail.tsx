@@ -18,6 +18,9 @@ import {
   AlertCircle,
   Calendar,
   Package,
+  CreditCard,
+  Wallet,
+  Target,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +51,33 @@ interface Revenue {
   observations?: string;
   nao_pago_acumulado: number;
   revenue_category_id?: string;
+  payment_method_id?: string;
+  net_amount?: number;
+  expected_receipt_date?: string;
+}
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  type: string;
+  fee_percentage: number;
+  installments: number;
+  is_active: boolean;
+}
+
+interface PaymentDelayRule {
+  id: string;
+  payment_method_id: string;
+  delay_days: number | null;
+}
+
+interface Goal {
+  id: string;
+  store_id: string | null;
+  type: string;
+  value: number;
+  month: number | null;
+  year: number | null;
 }
 
 interface Expense {
@@ -58,6 +88,7 @@ interface Expense {
   due_date: string;
   status: "paid" | "pending" | "late";
   observations?: string;
+  interest_amount?: number;
 }
 
 const fmt = (v: number) =>
@@ -96,6 +127,9 @@ export function StoreDetail() {
   const [revCategoryId, setRevCategoryId] = useState<string | undefined>(
     undefined,
   );
+  const [revPaymentMethodId, setRevPaymentMethodId] = useState<
+    string | undefined
+  >(undefined);
 
   // Expense fields
   const [expDate, setExpDate] = useState("");
@@ -103,6 +137,19 @@ export function StoreDetail() {
   const [expCategory, setExpCategory] = useState<string | undefined>(undefined);
   const [expStatus, setExpStatus] = useState("pending");
   const [expObs, setExpObs] = useState("");
+  const [expInterest, setExpInterest] = useState("");
+
+  // Payment methods & delay rules
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [delayRules, setDelayRules] = useState<PaymentDelayRule[]>([]);
+
+  // Goals
+  const [storeGoals, setStoreGoals] = useState<Goal[]>([]);
+
+  // Projection mode
+  const [projectionMode, setProjectionMode] = useState<
+    "normal" | "antecipacao"
+  >("normal");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{
@@ -113,10 +160,10 @@ export function StoreDetail() {
   const [dateRange, setDateRange] = useDateFilter();
   const dateFilter = useMemo(() => dateRangeToFilter(dateRange), [dateRange]);
 
-  // Fetch expense & revenue categories on mount
+  // Fetch expense & revenue categories + payment methods on mount
   useEffect(() => {
     async function loadCategories() {
-      const [expRes, revRes] = await Promise.all([
+      const [expRes, revRes, pmRes, drRes] = await Promise.all([
         supabase
           .from("expense_categories")
           .select("id, name, type")
@@ -127,9 +174,19 @@ export function StoreDetail() {
           .select("id, name, type")
           .eq("is_active", true)
           .order("name"),
+        supabase
+          .from("payment_methods")
+          .select("*")
+          .eq("is_active", true)
+          .order("installments"),
+        supabase
+          .from("payment_delay_rules")
+          .select("id, payment_method_id, delay_days"),
       ]);
       if (expRes.data) setExpCategories(expRes.data);
       if (revRes.data) setRevCategories(revRes.data);
+      if (pmRes.data) setPaymentMethods(pmRes.data);
+      if (drRes.data) setDelayRules(drRes.data);
     }
     loadCategories();
   }, []);
@@ -196,6 +253,17 @@ export function StoreDetail() {
           .maybeSingle();
         if (settingData) setMarginTarget(Number(settingData.value));
       }
+
+      // Fetch all goals for this store (and global)
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const { data: goalsData } = await supabase
+        .from("goals")
+        .select("*")
+        .or(`store_id.eq.${id},store_id.is.null`)
+        .or(`month.eq.${currentMonth},month.is.null`)
+        .or(`year.eq.${currentYear},year.is.null`);
+      if (goalsData) setStoreGoals(goalsData);
     } catch (error) {
       console.error("Error fetching store data:", error);
     } finally {
@@ -225,6 +293,24 @@ export function StoreDetail() {
         const acumuladoInput = parseFloat(revNaoPagoAcumulado) || 0;
         const acumuladoFinal = acumuladoInput - unpaidAmount;
 
+        // Calculate net amount and expected receipt date based on payment method
+        let netAmount = paidAmount;
+        let expectedReceiptDate: string | null = null;
+        if (revPaymentMethodId) {
+          const pm = paymentMethods.find((p) => p.id === revPaymentMethodId);
+          if (pm) {
+            netAmount = paidAmount * (1 - pm.fee_percentage / 100);
+          }
+          const rule = delayRules.find(
+            (r) => r.payment_method_id === revPaymentMethodId,
+          );
+          if (rule && rule.delay_days !== null && revDate) {
+            const d = new Date(revDate + "T12:00:00");
+            d.setDate(d.getDate() + rule.delay_days);
+            expectedReceiptDate = d.toISOString().split("T")[0];
+          }
+        }
+
         const insertData: Record<string, unknown> = {
           store_id: id,
           date: revDate,
@@ -234,6 +320,9 @@ export function StoreDetail() {
           nao_pago_acumulado: acumuladoFinal < 0 ? 0 : acumuladoFinal,
           pieces_count: revPieces ? parseInt(revPieces) : 0,
           observations: revObs || null,
+          payment_method_id: revPaymentMethodId || null,
+          net_amount: netAmount,
+          expected_receipt_date: expectedReceiptDate,
         };
         if (revCategoryId && revCategoryId !== "") {
           insertData.revenue_category_id = revCategoryId;
@@ -250,6 +339,7 @@ export function StoreDetail() {
             category: expCategory || "",
             status: expStatus,
             observations: expObs,
+            interest_amount: parseFloat(expInterest) || 0,
           },
         ]);
         if (error) throw error;
@@ -266,11 +356,13 @@ export function StoreDetail() {
       setRevPieces("");
       setRevObs("");
       setRevCategoryId(undefined);
+      setRevPaymentMethodId(undefined);
       setExpDate("");
       setExpAmount("");
       setExpCategory(undefined);
       setExpStatus("pending");
       setExpObs("");
+      setExpInterest("");
       fetchStoreData();
       setTimeout(() => setModalOpen(false), 1200);
     } catch (err: unknown) {
@@ -329,8 +421,71 @@ export function StoreDetail() {
     0,
   );
   const totalExp = expenses.reduce((acc, e) => acc + Number(e.amount), 0);
+  const totalInterest = expenses.reduce(
+    (acc, e) => acc + Number(e.interest_amount || 0),
+    0,
+  );
   const opProfit = totalRecebido - totalExp;
   const margin = totalRecebido > 0 ? (opProfit / totalRecebido) * 100 : 0;
+
+  // Projection: group revenues by expected_receipt_date for next 7 days
+  const projectionData = useMemo(() => {
+    const today = new Date();
+    const days: { date: string; label: string; amount: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+      const label = d.toLocaleDateString("pt-BR", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+      });
+      let amount = 0;
+      if (projectionMode === "normal") {
+        revenues.forEach((r) => {
+          if (r.expected_receipt_date === dateStr) {
+            amount += Number(r.net_amount || 0);
+          }
+        });
+      } else {
+        // Antecipação: all future receipts shown today
+        if (i === 0) {
+          revenues.forEach((r) => {
+            if (r.expected_receipt_date && r.expected_receipt_date >= dateStr) {
+              amount += Number(r.net_amount || 0);
+            }
+          });
+        }
+      }
+      days.push({ date: dateStr, label, amount });
+    }
+    return days;
+  }, [revenues, projectionMode]);
+
+  const totalProjection = projectionData.reduce((a, b) => a + b.amount, 0);
+
+  // Goals progress
+  const GOAL_LABELS: Record<string, string> = {
+    revenue_monthly: "Meta Entrada Mensal",
+    revenue_daily: "Meta Entrada Diária",
+    expense_monthly: "Meta Despesa Mensal",
+    margin_target: "Meta de Margem (%)",
+  };
+
+  const goalProgress = useMemo(() => {
+    return storeGoals.map((g) => {
+      let current = 0;
+      if (g.type === "revenue_monthly") current = totalFaturamento;
+      else if (g.type === "revenue_daily")
+        current = revenues.length > 0 ? totalFaturamento / revenues.length : 0;
+      else if (g.type === "expense_monthly") current = totalExp;
+      else if (g.type === "margin_target") current = margin;
+      const percent =
+        g.value > 0 ? Math.min((current / g.value) * 100, 100) : 0;
+      return { ...g, current, percent };
+    });
+  }, [storeGoals, totalFaturamento, totalExp, margin, revenues.length]);
 
   // Use the nao_pago_acumulado stored per revenue row
   const revenuesWithAccum = (() => {
@@ -460,7 +615,125 @@ export function StoreDetail() {
             </p>
           </CardContent>
         </Card>
+        {totalInterest > 0 && (
+          <Card className="bg-orange-50 border-orange-200">
+            <CardContent className="p-4">
+              <p className="text-[11px] text-orange-700 font-medium uppercase tracking-wide">
+                Total Juros
+              </p>
+              <p className="text-lg md:text-xl font-bold text-orange-600">
+                {fmt(totalInterest)}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Goals Section */}
+      {goalProgress.length > 0 && (
+        <Card className="border-purple-200 bg-purple-50/30">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <CardTitle className="text-sm font-semibold text-purple-700 flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Metas da Loja
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              {goalProgress.map((g) => (
+                <div
+                  key={g.id}
+                  className="p-3 bg-white rounded-lg border border-purple-100"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-slate-600">
+                      {GOAL_LABELS[g.type] || g.type}
+                    </span>
+                    <span className="text-xs font-bold text-purple-700">
+                      {g.percent.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-purple-100 rounded-full h-2 mb-1">
+                    <div
+                      className={`h-2 rounded-full transition-all ${g.percent >= 100 ? "bg-emerald-500" : g.percent >= 70 ? "bg-purple-500" : "bg-purple-300"}`}
+                      style={{ width: `${g.percent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-500">
+                    <span>
+                      Atual:{" "}
+                      {g.type === "margin_target"
+                        ? `${g.current.toFixed(1)}%`
+                        : fmt(g.current)}
+                    </span>
+                    <span>
+                      Meta:{" "}
+                      {g.type === "margin_target"
+                        ? `${g.value}%`
+                        : fmt(g.value)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Projection Card */}
+      {totalProjection > 0 && (
+        <Card className="border-indigo-200 bg-indigo-50/30">
+          <CardHeader className="pb-2 pt-4 px-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
+                <Wallet className="w-4 h-4" />
+                Previsão de Entrada na Conta
+              </CardTitle>
+              <div className="flex rounded-md overflow-hidden border border-indigo-200 text-[10px]">
+                <button
+                  onClick={() => setProjectionMode("normal")}
+                  className={`px-3 py-1 font-semibold transition-colors ${projectionMode === "normal" ? "bg-indigo-600 text-white" : "bg-white text-indigo-600"}`}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => setProjectionMode("antecipacao")}
+                  className={`px-3 py-1 font-semibold transition-colors ${projectionMode === "antecipacao" ? "bg-indigo-600 text-white" : "bg-white text-indigo-600"}`}
+                >
+                  Antecipação
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="grid gap-2 grid-cols-7">
+              {projectionData.map((d) => (
+                <div
+                  key={d.date}
+                  className={`text-center p-2 rounded-lg border ${d.amount > 0 ? "bg-white border-indigo-200" : "bg-slate-50 border-slate-100"}`}
+                >
+                  <p className="text-[9px] text-slate-500 uppercase font-medium">
+                    {d.label}
+                  </p>
+                  <p
+                    className={`text-xs font-bold mt-1 ${d.amount > 0 ? "text-indigo-700" : "text-slate-400"}`}
+                  >
+                    {d.amount > 0 ? fmt(d.amount) : "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between p-2 bg-indigo-100 rounded-lg">
+              <span className="text-xs font-medium text-indigo-700">
+                Total previsto (próx. 7 dias)
+              </span>
+              <span className="text-sm font-bold text-indigo-800">
+                {fmt(totalProjection)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Profit row */}
       <div className="grid gap-3 grid-cols-2">
@@ -850,10 +1123,80 @@ export function StoreDetail() {
                       />
                     </div>
                   </div>
+                  {/* Payment Method */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Método de Pagamento</Label>
+                    <Select
+                      value={revPaymentMethodId}
+                      onValueChange={setRevPaymentMethodId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((pm) => (
+                          <SelectItem key={pm.id} value={pm.id}>
+                            <span className="flex items-center gap-2">
+                              <CreditCard className="w-3 h-3" />
+                              {pm.name}
+                              <span className="text-[9px] font-bold text-slate-500">
+                                ({pm.fee_percentage}%)
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Fee preview */}
+                  {revPaymentMethodId &&
+                    (parseFloat(revPaidAmount) || 0) > 0 &&
+                    (() => {
+                      const pm = paymentMethods.find(
+                        (p) => p.id === revPaymentMethodId,
+                      );
+                      if (!pm) return null;
+                      const paid = parseFloat(revPaidAmount) || 0;
+                      const fee = paid * (pm.fee_percentage / 100);
+                      const net = paid - fee;
+                      const rule = delayRules.find(
+                        (r) => r.payment_method_id === pm.id,
+                      );
+                      return (
+                        <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-indigo-600">
+                              Taxa ({pm.fee_percentage}%)
+                            </span>
+                            <span className="font-bold text-red-600">
+                              - {fmt(fee)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-indigo-600">
+                              Valor Líquido
+                            </span>
+                            <span className="font-bold text-emerald-600">
+                              {fmt(net)}
+                            </span>
+                          </div>
+                          {rule && rule.delay_days !== null && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-indigo-600">
+                                Previsão de entrada
+                              </span>
+                              <span className="font-bold text-indigo-700">
+                                {rule.delay_days} dia(s)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   <div className="space-y-1.5">
                     <Label className="text-xs">Observação</Label>
                     <Input
-                      placeholder="Opcional"
+                      placeholder="Opcional - ex: pagamento do ticket #123"
                       value={revObs}
                       onChange={(e) => setRevObs(e.target.value)}
                     />
@@ -928,13 +1271,25 @@ export function StoreDetail() {
                       </Select>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Observações</Label>
-                    <Input
-                      placeholder="Opcional"
-                      value={expObs}
-                      onChange={(e) => setExpObs(e.target.value)}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Juros (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={expInterest}
+                        onChange={(e) => setExpInterest(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Observações</Label>
+                      <Input
+                        placeholder="Opcional"
+                        value={expObs}
+                        onChange={(e) => setExpObs(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </>
               )}

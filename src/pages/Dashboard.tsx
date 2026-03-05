@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   TrendingUp,
@@ -30,6 +30,7 @@ import {
   dateRangeToFilter,
   dateRangeLabel,
 } from "@/lib/dateFilter";
+import { supabase } from "@/lib/supabase";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
@@ -51,6 +52,25 @@ export function Dashboard() {
   } = useFetchDashboard(dateFilter);
 
   const [selectedStore, setSelectedStore] = useState<StoreMetric | null>(null);
+  const [projectedToday, setProjectedToday] = useState(0);
+
+  useEffect(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    supabase
+      .from("revenues")
+      .select("net_amount")
+      .eq("expected_receipt_date", todayStr)
+      .then(({ data }) => {
+        if (data) {
+          const total = data.reduce(
+            (acc: number, r: { net_amount: number | null }) =>
+              acc + Number(r.net_amount || 0),
+            0,
+          );
+          setProjectedToday(total);
+        }
+      });
+  }, []);
 
   if (isLoading) {
     return (
@@ -151,6 +171,29 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Projection Today Card */}
+      {projectedToday > 0 && (
+        <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-xs text-indigo-700 font-bold uppercase tracking-wider">
+                Previsão de Entrada Hoje
+              </p>
+              <p className="text-xl font-bold text-indigo-700">
+                {fmt(projectedToday)}
+              </p>
+              <p className="text-[10px] text-indigo-500 mt-0.5">
+                Valor líquido previsto para cair na conta hoje (já descontando
+                taxas)
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* SOFN Indicator */}
       {sofnStore && (
