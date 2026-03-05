@@ -106,7 +106,7 @@ export function Settings() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [targetRole, setTargetRole] = useState("client");
-  const [targetStore, setTargetStore] = useState("");
+  const [targetStore, setTargetStore] = useState<string | undefined>(undefined);
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
@@ -268,7 +268,7 @@ export function Settings() {
             email,
             password,
             role: targetRole,
-            store_id: targetRole === "client" ? targetStore : null,
+            store_id: targetRole === "client" ? targetStore || null : null,
           }),
         },
       );
@@ -278,7 +278,7 @@ export function Settings() {
       setMessage({ type: "success", text: "Usuário criado com sucesso!" });
       setEmail("");
       setPassword("");
-      setTargetStore("");
+      setTargetStore(undefined);
       fetchUsers();
     } catch (err: unknown) {
       if (err instanceof Error)
@@ -569,6 +569,7 @@ export function Settings() {
                     <Input
                       id="password"
                       type="password"
+                      autoComplete="new-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required

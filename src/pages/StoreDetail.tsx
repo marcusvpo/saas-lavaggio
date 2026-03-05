@@ -73,6 +73,7 @@ export function StoreDetail() {
   const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [latestNaoPagoAcum, setLatestNaoPagoAcum] = useState(0);
   const [marginTarget, setMarginTarget] = useState<number>(20);
   const [expCategories, setExpCategories] = useState<
     { id: string; name: string; type: string }[]
@@ -92,12 +93,14 @@ export function StoreDetail() {
   const [revNaoPagoAcumulado, setRevNaoPagoAcumulado] = useState("");
   const [revPieces, setRevPieces] = useState("");
   const [revObs, setRevObs] = useState("");
-  const [revCategoryId, setRevCategoryId] = useState("");
+  const [revCategoryId, setRevCategoryId] = useState<string | undefined>(
+    undefined,
+  );
 
   // Expense fields
   const [expDate, setExpDate] = useState("");
   const [expAmount, setExpAmount] = useState("");
-  const [expCategory, setExpCategory] = useState("");
+  const [expCategory, setExpCategory] = useState<string | undefined>(undefined);
   const [expStatus, setExpStatus] = useState("pending");
   const [expObs, setExpObs] = useState("");
 
@@ -160,6 +163,20 @@ export function StoreDetail() {
         .order("due_date", { ascending: false });
       if (expData) setExpenses(expData);
 
+      // Fetch latest nao_pago_acumulado (no date filter - always most recent)
+      const { data: latestAccumData } = await supabase
+        .from("revenues")
+        .select("nao_pago_acumulado")
+        .eq("store_id", id)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestAccumData) {
+        setLatestNaoPagoAcum(Number(latestAccumData.nao_pago_acumulado));
+      } else {
+        setLatestNaoPagoAcum(0);
+      }
+
       // Fetch margin target: store-specific goal first, then platform default
       const { data: goalData } = await supabase
         .from("goals")
@@ -218,7 +235,7 @@ export function StoreDetail() {
           pieces_count: revPieces ? parseInt(revPieces) : 0,
           observations: revObs || null,
         };
-        if (revCategoryId) {
+        if (revCategoryId && revCategoryId !== "") {
           insertData.revenue_category_id = revCategoryId;
         }
 
@@ -230,7 +247,7 @@ export function StoreDetail() {
             store_id: id,
             due_date: expDate,
             amount: parseFloat(expAmount),
-            category: expCategory,
+            category: expCategory || "",
             status: expStatus,
             observations: expObs,
           },
@@ -248,10 +265,10 @@ export function StoreDetail() {
       setRevNaoPagoAcumulado("");
       setRevPieces("");
       setRevObs("");
-      setRevCategoryId("");
+      setRevCategoryId(undefined);
       setExpDate("");
       setExpAmount("");
-      setExpCategory("");
+      setExpCategory(undefined);
       setExpStatus("pending");
       setExpObs("");
       fetchStoreData();
@@ -324,15 +341,6 @@ export function StoreDetail() {
     return map;
   })();
 
-  // Latest Não Pago Acumulado (most recent entry)
-  const latestNaoPagoAcum = (() => {
-    if (revenues.length === 0) return 0;
-    const sorted = [...revenues].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
-    return Number(sorted[0].nao_pago_acumulado);
-  })();
-
   // Upcoming expenses
   const today = new Date();
   const upcoming = expenses
@@ -387,6 +395,10 @@ export function StoreDetail() {
             onClick={() => {
               setModalOpen(true);
               setSubmitMessage(null);
+              // Pre-fill with latest Não Pago Acumulado
+              setRevNaoPagoAcumulado(
+                latestNaoPagoAcum > 0 ? String(latestNaoPagoAcum) : "",
+              );
             }}
             className="bg-blue-600 hover:bg-blue-700 gap-2"
           >
