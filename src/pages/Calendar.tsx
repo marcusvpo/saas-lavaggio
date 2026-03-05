@@ -146,7 +146,7 @@ export function Calendar() {
             </div>
             <div>
               <p className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
-                Receitas
+                Entradas
               </p>
               <p className="text-lg font-bold text-emerald-600">
                 {fmt(totalRevMonth)}
@@ -248,7 +248,7 @@ export function Calendar() {
                   >
                     <div>
                       <p className="font-semibold text-sm text-emerald-700">
-                        Receita — {getStoreName(rev.store_id)}
+                        Entrada — {getStoreName(rev.store_id)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Recebido: {fmt(Number(rev.paid_amount))}
@@ -256,7 +256,7 @@ export function Calendar() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Badge className="bg-emerald-500 hover:bg-emerald-600 text-[10px]">
-                        Receita
+                        Entrada
                       </Badge>
                       <span className="font-bold text-emerald-600">
                         {fmt(Number(rev.total_amount))}

@@ -91,7 +91,7 @@ export function Dashboard() {
             <div className="text-lg md:text-2xl font-bold">
               {fmt(totalRevenue)}
             </div>
-            <p className="text-[11px] text-blue-300 mt-1">Receita do período</p>
+            <p className="text-[11px] text-blue-300 mt-1">Entrada do período</p>
           </CardContent>
         </Card>
 
@@ -147,7 +147,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-lg md:text-2xl font-bold">{fmt(profit)}</div>
-            <p className="text-[11px] text-white/70 mt-1">Receita - Despesas</p>
+            <p className="text-[11px] text-white/70 mt-1">Entrada - Despesas</p>
           </CardContent>
         </Card>
       </div>
@@ -171,7 +171,7 @@ export function Dashboard() {
             </div>
             <div className="hidden sm:flex items-center gap-4 text-sm">
               <div className="text-right">
-                <p className="text-muted-foreground text-xs">Receita</p>
+                <p className="text-muted-foreground text-xs">Entrada</p>
                 <p className="font-bold text-emerald-600">
                   {fmt(sofnStore.revenue)}
                 </p>
@@ -337,7 +337,7 @@ export function Dashboard() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-emerald-50 rounded-xl p-4">
                   <p className="text-xs text-emerald-700 font-medium">
-                    Receita
+                    Entrada
                   </p>
                   <p className="text-xl font-bold text-emerald-600">
                     {fmt(selectedStore.revenue)}

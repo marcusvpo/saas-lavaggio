@@ -55,6 +55,13 @@ interface ExpenseCategory {
   is_active: boolean;
 }
 
+interface RevenueCategory {
+  id: string;
+  name: string;
+  type: string;
+  is_active: boolean;
+}
+
 interface PlatformSetting {
   id: string;
   key: string;
@@ -68,8 +75,8 @@ const fmt = (v: number) =>
   );
 
 const GOAL_LABELS: Record<string, string> = {
-  revenue_monthly: "Meta Receita Mensal",
-  revenue_daily: "Meta Receita Diária",
+  revenue_monthly: "Meta Entrada Mensal",
+  revenue_daily: "Meta Entrada Diária",
   expense_monthly: "Meta Despesa Mensal",
   margin_target: "Meta de Margem (%)",
 };
@@ -119,6 +126,7 @@ export function Settings() {
   /* ----- Parametrization state ----- */
   const [goals, setGoals] = useState<Goal[]>([]);
   const [expCategories, setExpCategories] = useState<ExpenseCategory[]>([]);
+  const [revCategories, setRevCategories] = useState<RevenueCategory[]>([]);
   const [platformSettings, setPlatformSettings] = useState<PlatformSetting[]>(
     [],
   );
@@ -135,10 +143,17 @@ export function Settings() {
     year: new Date().getFullYear().toString(),
   });
 
-  // Category modal
+  // Expense Category modal
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<ExpenseCategory | null>(null);
   const [catForm, setCatForm] = useState({ name: "", type: "fixed" });
+
+  // Revenue Category modal
+  const [revCatModalOpen, setRevCatModalOpen] = useState(false);
+  const [editingRevCat, setEditingRevCat] = useState<RevenueCategory | null>(
+    null,
+  );
+  const [revCatForm, setRevCatForm] = useState({ name: "", type: "fixed" });
 
   // Settings editing
   const [editingSettings, setEditingSettings] = useState<
@@ -179,12 +194,13 @@ export function Settings() {
   const fetchParametrizations = useCallback(async () => {
     setParamLoading(true);
     try {
-      const [goalsRes, catsRes, settingsRes] = await Promise.all([
+      const [goalsRes, catsRes, revCatsRes, settingsRes] = await Promise.all([
         supabase
           .from("goals")
           .select("*")
           .order("created_at", { ascending: false }),
         supabase.from("expense_categories").select("*").order("name"),
+        supabase.from("revenue_categories").select("*").order("name"),
         supabase.from("platform_settings").select("*").order("key"),
       ]);
 
@@ -209,6 +225,7 @@ export function Settings() {
         );
       }
       if (catsRes.data) setExpCategories(catsRes.data);
+      if (revCatsRes.data) setRevCategories(revCatsRes.data);
       if (settingsRes.data) {
         setPlatformSettings(settingsRes.data);
         const map: Record<string, string> = {};
@@ -315,7 +332,7 @@ export function Settings() {
         store_id: goal.store_id || "__global__",
         type: goal.type,
         value: String(goal.value),
-        month: goal.month ? String(goal.month) : "",
+        month: goal.month ? String(goal.month) : "all",
         year: goal.year
           ? String(goal.year)
           : new Date().getFullYear().toString(),
@@ -326,7 +343,7 @@ export function Settings() {
         store_id: "__global__",
         type: "revenue_monthly",
         value: "",
-        month: "",
+        month: "all",
         year: new Date().getFullYear().toString(),
       });
     }
@@ -339,7 +356,7 @@ export function Settings() {
       store_id: goalForm.store_id === "__global__" ? null : goalForm.store_id,
       type: goalForm.type,
       value: parseFloat(goalForm.value),
-      month: goalForm.month ? parseInt(goalForm.month) : null,
+      month: goalForm.month === "all" ? null : parseInt(goalForm.month),
       year: goalForm.year ? parseInt(goalForm.year) : null,
     };
 
@@ -393,6 +410,50 @@ export function Settings() {
       .from("expense_categories")
       .update({ is_active: !cat.is_active })
       .eq("id", cat.id);
+    fetchParametrizations();
+  };
+
+  /* =========================
+     Revenue Category handlers
+     ========================= */
+  const openRevCatModal = (cat?: RevenueCategory) => {
+    if (cat) {
+      setEditingRevCat(cat);
+      setRevCatForm({ name: cat.name, type: cat.type });
+    } else {
+      setEditingRevCat(null);
+      setRevCatForm({ name: "", type: "fixed" });
+    }
+    setRevCatModalOpen(true);
+  };
+
+  const handleSaveRevCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingRevCat) {
+      await supabase
+        .from("revenue_categories")
+        .update({ name: revCatForm.name, type: revCatForm.type })
+        .eq("id", editingRevCat.id);
+    } else {
+      await supabase
+        .from("revenue_categories")
+        .insert([{ name: revCatForm.name, type: revCatForm.type }]);
+    }
+    setRevCatModalOpen(false);
+    fetchParametrizations();
+  };
+
+  const handleToggleRevCat = async (cat: RevenueCategory) => {
+    await supabase
+      .from("revenue_categories")
+      .update({ is_active: !cat.is_active })
+      .eq("id", cat.id);
+    fetchParametrizations();
+  };
+
+  const handleDeleteRevCat = async (id: string) => {
+    if (!window.confirm("Excluir esta categoria de entrada?")) return;
+    await supabase.from("revenue_categories").delete().eq("id", id);
     fetchParametrizations();
   };
 
@@ -625,7 +686,14 @@ export function Settings() {
                   className="flex items-center gap-2"
                 >
                   <Tag className="w-4 h-4" />
-                  Categorias de Despesas
+                  Categorias de Despesa
+                </TabsTrigger>
+                <TabsTrigger
+                  value="rev-categories"
+                  className="flex items-center gap-2"
+                >
+                  <Tag className="w-4 h-4" />
+                  Categorias de Entrada
                 </TabsTrigger>
                 <TabsTrigger
                   value="settings"
@@ -732,7 +800,7 @@ export function Settings() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <div>
-                      <CardTitle>Categorias de Despesas</CardTitle>
+                      <CardTitle>Categorias de Despesa</CardTitle>
                       <CardDescription className="mt-1">
                         Gerencie as categorias padrão para lançamento de
                         despesas nas lojas.
@@ -806,6 +874,96 @@ export function Settings() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* ----------- Revenue Categories Sub-Tab ----------- */}
+              <TabsContent value="rev-categories">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <div>
+                      <CardTitle>Categorias de Entrada</CardTitle>
+                      <CardDescription className="mt-1">
+                        Gerencie as categorias padrão para lançamento de
+                        entradas (receitas) nas lojas.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={() => openRevCatModal()}
+                      className="bg-blue-600 hover:bg-blue-700 gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Nova Categoria
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {/* Table header */}
+                      <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                        <div className="col-span-4">Nome</div>
+                        <div className="col-span-3">Tipo</div>
+                        <div className="col-span-2">Status</div>
+                        <div className="col-span-3 text-right">Ações</div>
+                      </div>
+                      {revCategories.length === 0 ? (
+                        <div className="text-sm text-muted-foreground flex items-center justify-center p-10 border border-dashed rounded-lg">
+                          Nenhuma categoria de entrada cadastrada.
+                        </div>
+                      ) : (
+                        revCategories.map((cat) => (
+                          <div
+                            key={cat.id}
+                            className={`grid grid-cols-12 gap-2 items-center px-3 py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!cat.is_active ? "opacity-50" : ""}`}
+                          >
+                            <div className="col-span-4">
+                              <span className="text-sm font-medium text-slate-700">
+                                {cat.name}
+                              </span>
+                            </div>
+                            <div className="col-span-3">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                                  cat.type === "fixed"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-cyan-100 text-cyan-700"
+                                }`}
+                              >
+                                {cat.type === "fixed" ? "Fixo" : "Variável"}
+                              </span>
+                            </div>
+                            <div className="col-span-2">
+                              <button
+                                onClick={() => handleToggleRevCat(cat)}
+                                className={`text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${
+                                  cat.is_active
+                                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                                }`}
+                              >
+                                {cat.is_active ? "Ativo" : "Inativo"}
+                              </button>
+                            </div>
+                            <div className="col-span-3 flex justify-end gap-1">
+                              <button
+                                onClick={() => openRevCatModal(cat)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+                                title="Editar"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRevCat(cat.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -923,10 +1081,10 @@ export function Settings() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="revenue_monthly">
-                      Meta Receita Mensal
+                      Meta Entrada Mensal
                     </SelectItem>
                     <SelectItem value="revenue_daily">
-                      Meta Receita Diária
+                      Meta Entrada Diária
                     </SelectItem>
                     <SelectItem value="expense_monthly">
                       Meta Despesa Mensal
@@ -979,7 +1137,7 @@ export function Settings() {
                     <SelectValue placeholder="Todos os meses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os meses</SelectItem>
+                    <SelectItem value="all">Todos os meses</SelectItem>
                     {MONTHS.map((m, i) => (
                       <SelectItem key={i} value={String(i + 1)}>
                         {m}
@@ -1050,6 +1208,65 @@ export function Settings() {
               >
                 <Check className="w-4 h-4 mr-2" />
                 {editingCat ? "Salvar Alterações" : "Criar Categoria"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* =============== REVENUE CATEGORY MODAL =============== */}
+      {revCatModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800">
+                {editingRevCat
+                  ? "Editar Categoria de Entrada"
+                  : "Nova Categoria de Entrada"}
+              </h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setRevCatModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <form onSubmit={handleSaveRevCat} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Nome da Categoria *</Label>
+                <Input
+                  value={revCatForm.name}
+                  onChange={(e) =>
+                    setRevCatForm((p) => ({ ...p, name: e.target.value }))
+                  }
+                  placeholder="Ex: Lavagem Comum"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tipo *</Label>
+                <Select
+                  value={revCatForm.type}
+                  onValueChange={(v) =>
+                    setRevCatForm((p) => ({ ...p, type: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixo</SelectItem>
+                    <SelectItem value="variable">Variável</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 font-semibold"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                {editingRevCat ? "Salvar Alterações" : "Criar Categoria"}
               </Button>
             </form>
           </div>

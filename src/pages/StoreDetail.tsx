@@ -45,6 +45,9 @@ interface Revenue {
   unpaid_amount: number;
   pieces_count: number;
   date: string;
+  observations?: string;
+  nao_pago_acumulado: number;
+  revenue_category_id?: string;
 }
 
 interface Expense {
@@ -74,6 +77,9 @@ export function StoreDetail() {
   const [expCategories, setExpCategories] = useState<
     { id: string; name: string; type: string }[]
   >([]);
+  const [revCategories, setRevCategories] = useState<
+    { id: string; name: string; type: string }[]
+  >([]);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -81,8 +87,12 @@ export function StoreDetail() {
 
   // Revenue fields
   const [revDate, setRevDate] = useState("");
-  const [revTotalAmount, setRevTotalAmount] = useState("");
+  const [revPaidAmount, setRevPaidAmount] = useState("");
+  const [revUnpaidAmount, setRevUnpaidAmount] = useState("");
+  const [revNaoPagoAcumulado, setRevNaoPagoAcumulado] = useState("");
   const [revPieces, setRevPieces] = useState("");
+  const [revObs, setRevObs] = useState("");
+  const [revCategoryId, setRevCategoryId] = useState("");
 
   // Expense fields
   const [expDate, setExpDate] = useState("");
@@ -100,15 +110,23 @@ export function StoreDetail() {
   const [dateRange, setDateRange] = useDateFilter();
   const dateFilter = useMemo(() => dateRangeToFilter(dateRange), [dateRange]);
 
-  // Fetch expense categories on mount
+  // Fetch expense & revenue categories on mount
   useEffect(() => {
     async function loadCategories() {
-      const { data } = await supabase
-        .from("expense_categories")
-        .select("id, name, type")
-        .eq("is_active", true)
-        .order("name");
-      if (data) setExpCategories(data);
+      const [expRes, revRes] = await Promise.all([
+        supabase
+          .from("expense_categories")
+          .select("id, name, type")
+          .eq("is_active", true)
+          .order("name"),
+        supabase
+          .from("revenue_categories")
+          .select("id, name, type")
+          .eq("is_active", true)
+          .order("name"),
+      ]);
+      if (expRes.data) setExpCategories(expRes.data);
+      if (revRes.data) setRevCategories(revRes.data);
     }
     loadCategories();
   }, []);
@@ -172,6 +190,10 @@ export function StoreDetail() {
     if (id) fetchStoreData();
   }, [id, session, fetchStoreData]);
 
+  // Computed faturamento dia (indicator)
+  const computedFaturamentoDia =
+    (parseFloat(revPaidAmount) || 0) + (parseFloat(revUnpaidAmount) || 0);
+
   const handleSubmitEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id) return;
@@ -180,18 +202,27 @@ export function StoreDetail() {
 
     try {
       if (entryType === "receita") {
-        const totalAmount = parseFloat(revTotalAmount);
+        const paidAmount = parseFloat(revPaidAmount) || 0;
+        const unpaidAmount = parseFloat(revUnpaidAmount) || 0;
+        const totalAmount = paidAmount + unpaidAmount;
+        const acumuladoInput = parseFloat(revNaoPagoAcumulado) || 0;
+        const acumuladoFinal = acumuladoInput - unpaidAmount;
 
-        const { error } = await supabase.from("revenues").insert([
-          {
-            store_id: id,
-            date: revDate,
-            total_amount: totalAmount,
-            paid_amount: totalAmount,
-            unpaid_amount: 0,
-            pieces_count: revPieces ? parseInt(revPieces) : 0,
-          },
-        ]);
+        const insertData: Record<string, unknown> = {
+          store_id: id,
+          date: revDate,
+          total_amount: totalAmount,
+          paid_amount: paidAmount,
+          unpaid_amount: unpaidAmount,
+          nao_pago_acumulado: acumuladoFinal < 0 ? 0 : acumuladoFinal,
+          pieces_count: revPieces ? parseInt(revPieces) : 0,
+          observations: revObs || null,
+        };
+        if (revCategoryId) {
+          insertData.revenue_category_id = revCategoryId;
+        }
+
+        const { error } = await supabase.from("revenues").insert([insertData]);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("expenses").insert([
@@ -208,12 +239,16 @@ export function StoreDetail() {
       }
       setSubmitMessage({
         type: "success",
-        text: `${entryType === "receita" ? "Receita" : "Despesa"} registrada com sucesso!`,
+        text: `${entryType === "receita" ? "Entrada" : "Despesa"} registrada com sucesso!`,
       });
       // Reset
       setRevDate("");
-      setRevTotalAmount("");
+      setRevPaidAmount("");
+      setRevUnpaidAmount("");
+      setRevNaoPagoAcumulado("");
       setRevPieces("");
+      setRevObs("");
+      setRevCategoryId("");
       setExpDate("");
       setExpAmount("");
       setExpCategory("");
@@ -236,7 +271,7 @@ export function StoreDetail() {
   };
 
   const handleDeleteRevenue = async (revId: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta receita?")) return;
+    if (!window.confirm("Tem certeza que deseja excluir esta entrada?")) return;
     try {
       const { error } = await supabase
         .from("revenues")
@@ -245,7 +280,7 @@ export function StoreDetail() {
       if (error) throw error;
       fetchStoreData();
     } catch (err) {
-      console.error("Erro ao excluir receita:", err);
+      console.error("Erro ao excluir entrada:", err);
     }
   };
 
@@ -272,10 +307,6 @@ export function StoreDetail() {
     (acc, r) => acc + Number(r.total_amount),
     0,
   );
-  const totalNaoPago = revenues.reduce(
-    (acc, r) => acc + Number(r.unpaid_amount),
-    0,
-  );
   const totalPecas = revenues.reduce(
     (acc, r) => acc + Number(r.pieces_count),
     0,
@@ -284,18 +315,22 @@ export function StoreDetail() {
   const opProfit = totalRecebido - totalExp;
   const margin = totalRecebido > 0 ? (opProfit / totalRecebido) * 100 : 0;
 
-  // Compute Não Pago Acumulado for each revenue row (running sum from oldest to newest)
+  // Use the nao_pago_acumulado stored per revenue row
   const revenuesWithAccum = (() => {
-    const sorted = [...revenues].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    );
-    let accum = 0;
     const map = new Map<string, number>();
-    for (const r of sorted) {
-      accum += Number(r.unpaid_amount);
-      map.set(r.id, accum);
+    for (const r of revenues) {
+      map.set(r.id, Number(r.nao_pago_acumulado));
     }
     return map;
+  })();
+
+  // Latest Não Pago Acumulado (most recent entry)
+  const latestNaoPagoAcum = (() => {
+    if (revenues.length === 0) return 0;
+    const sorted = [...revenues].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+    return Number(sorted[0].nao_pago_acumulado);
   })();
 
   // Upcoming expenses
@@ -389,7 +424,7 @@ export function StoreDetail() {
               Não Pago Acum.
             </p>
             <p className="text-lg md:text-xl font-bold text-amber-600">
-              {fmt(totalNaoPago)}
+              {fmt(latestNaoPagoAcum)}
             </p>
           </CardContent>
         </Card>
@@ -494,12 +529,12 @@ export function StoreDetail() {
 
       {/* Daily Revenue Table & DRE Split */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Receitas (Left - Green) with Daily Detail */}
+        {/* Entradas (Left - Green) with Daily Detail */}
         <Card className="border-emerald-200 shadow-sm">
           <CardHeader className="pb-2 bg-emerald-50 rounded-t-lg">
             <CardTitle className="text-base text-emerald-700 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
-              Controle Diário — Receitas
+              Controle Diário — Entradas
             </CardTitle>
             <p className="text-2xl font-bold text-emerald-600">
               {fmt(totalFaturamento)}
@@ -508,7 +543,7 @@ export function StoreDetail() {
           <CardContent className="pt-3 max-h-[500px] overflow-y-auto">
             {revenues.length === 0 ? (
               <div className="text-sm text-center py-8 text-muted-foreground border-dashed border rounded-lg">
-                Nenhuma receita registrada.
+                Nenhuma entrada registrada.
               </div>
             ) : (
               <div className="space-y-2">
@@ -672,6 +707,25 @@ export function StoreDetail() {
                 </div>
               )}
 
+              {/* Não Pago Acumulado - above the toggle, not revenue nor expense */}
+              <div className="space-y-1.5 p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+                <Label className="text-xs font-semibold text-amber-700">
+                  Não Pago Acumulado (R$)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor acumulado atual"
+                  value={revNaoPagoAcumulado}
+                  onChange={(e) => setRevNaoPagoAcumulado(e.target.value)}
+                  className="bg-white"
+                />
+                <p className="text-[10px] text-amber-600">
+                  Este campo não é entrada nem despesa. Representa o saldo
+                  acumulado de 'não pagos'.
+                </p>
+              </div>
+
               {/* Type Toggle */}
               <div className="flex rounded-lg overflow-hidden border border-slate-200">
                 <button
@@ -683,7 +737,7 @@ export function StoreDetail() {
                       : "bg-white text-slate-500 hover:bg-slate-50"
                   }`}
                 >
-                  Receita
+                  Entrada
                 </button>
                 <button
                   type="button"
@@ -709,24 +763,87 @@ export function StoreDetail() {
                       required
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Faturamento Dia (R$) *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0,00"
-                      value={revTotalAmount}
-                      onChange={(e) => setRevTotalAmount(e.target.value)}
-                      required
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Recebido Dia (R$) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={revPaidAmount}
+                        onChange={(e) => setRevPaidAmount(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Não Pago Dia (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={revUnpaidAmount}
+                        onChange={(e) => setRevUnpaidAmount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {/* Faturamento Dia - computed indicator */}
+                  <div className="space-y-1.5 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <Label className="text-xs font-semibold text-blue-700">
+                      Faturamento Dia (R$)
+                    </Label>
+                    <p className="text-lg font-bold text-blue-700">
+                      {fmt(computedFaturamentoDia)}
+                    </p>
+                    <p className="text-[10px] text-blue-500">
+                      Recebido Dia + Não Pago Dia (calculado automaticamente)
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Categoria de Entrada</Label>
+                      <Select
+                        value={revCategoryId}
+                        onValueChange={setRevCategoryId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {revCategories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              <span className="flex items-center gap-2">
+                                {cat.name}
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    cat.type === "fixed"
+                                      ? "bg-orange-100 text-orange-700"
+                                      : "bg-cyan-100 text-cyan-700"
+                                  }`}
+                                >
+                                  {cat.type === "fixed" ? "Fixo" : "Variável"}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">N° de Peças</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={revPieces}
+                        onChange={(e) => setRevPieces(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">N° de Peças</Label>
+                    <Label className="text-xs">Observação</Label>
                     <Input
-                      type="number"
-                      placeholder="0"
-                      value={revPieces}
-                      onChange={(e) => setRevPieces(e.target.value)}
+                      placeholder="Opcional"
+                      value={revObs}
+                      onChange={(e) => setRevObs(e.target.value)}
                     />
                   </div>
                 </>
@@ -821,7 +938,7 @@ export function StoreDetail() {
               >
                 {isSubmitting
                   ? "Registrando..."
-                  : `Registrar ${entryType === "receita" ? "Receita" : "Despesa"}`}
+                  : `Registrar ${entryType === "receita" ? "Entrada" : "Despesa"}`}
               </Button>
             </form>
           </div>
