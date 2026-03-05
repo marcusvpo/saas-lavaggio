@@ -15,6 +15,7 @@ import {
   Plus,
   X,
   Trash2,
+  Edit2,
   AlertCircle,
   Calendar,
   Package,
@@ -116,6 +117,7 @@ export function StoreDetail() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [entryType, setEntryType] = useState<"receita" | "despesa">("receita");
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
   // Revenue fields
   const [revDate, setRevDate] = useState("");
@@ -328,25 +330,43 @@ export function StoreDetail() {
           insertData.revenue_category_id = revCategoryId;
         }
 
-        const { error } = await supabase.from("revenues").insert([insertData]);
-        if (error) throw error;
+        if (editingEntryId) {
+          const { error } = await supabase
+            .from("revenues")
+            .update(insertData)
+            .eq("id", editingEntryId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from("revenues")
+            .insert([insertData]);
+          if (error) throw error;
+        }
       } else {
-        const { error } = await supabase.from("expenses").insert([
-          {
-            store_id: id,
-            due_date: expDate,
-            amount: parseFloat(expAmount),
-            category: expCategory || "",
-            status: expStatus,
-            observations: expObs,
-            interest_amount: parseFloat(expInterest) || 0,
-          },
-        ]);
-        if (error) throw error;
+        const expData = {
+          store_id: id,
+          due_date: expDate,
+          amount: parseFloat(expAmount),
+          category: expCategory || "",
+          status: expStatus,
+          observations: expObs,
+          interest_amount: parseFloat(expInterest) || 0,
+        };
+
+        if (editingEntryId) {
+          const { error } = await supabase
+            .from("expenses")
+            .update(expData)
+            .eq("id", editingEntryId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("expenses").insert([expData]);
+          if (error) throw error;
+        }
       }
       setSubmitMessage({
         type: "success",
-        text: `${entryType === "receita" ? "Entrada" : "Despesa"} registrada com sucesso!`,
+        text: `${entryType === "receita" ? "Entrada" : "Despesa"} ${editingEntryId ? "atualizada" : "registrada"} com sucesso!`,
       });
       // Reset
       setRevDate("");
@@ -363,6 +383,7 @@ export function StoreDetail() {
       setExpStatus("pending");
       setExpObs("");
       setExpInterest("");
+      setEditingEntryId(null);
       fetchStoreData();
       setTimeout(() => setModalOpen(false), 1200);
     } catch (err: unknown) {
@@ -377,6 +398,34 @@ export function StoreDetail() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditRevenue = (rev: Revenue) => {
+    setEditingEntryId(rev.id);
+    setEntryType("receita");
+    setRevDate(rev.date);
+    setRevPaidAmount(String(rev.paid_amount));
+    setRevUnpaidAmount(String(rev.unpaid_amount));
+    setRevNaoPagoAcumulado(String(rev.nao_pago_acumulado));
+    setRevPieces(String(rev.pieces_count));
+    setRevObs(rev.observations || "");
+    setRevCategoryId(rev.revenue_category_id || undefined);
+    setRevPaymentMethodId(rev.payment_method_id || undefined);
+    setSubmitMessage(null);
+    setModalOpen(true);
+  };
+
+  const handleEditExpense = (exp: Expense) => {
+    setEditingEntryId(exp.id);
+    setEntryType("despesa");
+    setExpDate(exp.due_date);
+    setExpAmount(String(exp.amount));
+    setExpCategory(exp.category);
+    setExpStatus(exp.status);
+    setExpObs(exp.observations || "");
+    setExpInterest(String(exp.interest_amount || 0));
+    setSubmitMessage(null);
+    setModalOpen(true);
   };
 
   const handleDeleteRevenue = async (revId: string) => {
@@ -548,6 +597,21 @@ export function StoreDetail() {
           </Button>
           <Button
             onClick={() => {
+              setEditingEntryId(null);
+              setRevDate("");
+              setRevPaidAmount("");
+              setRevUnpaidAmount("");
+              setRevPieces("");
+              setRevObs("");
+              setRevCategoryId(undefined);
+              setRevPaymentMethodId(undefined);
+              setExpDate("");
+              setExpAmount("");
+              setExpCategory(undefined);
+              setExpStatus("pending");
+              setExpObs("");
+              setExpInterest("");
+
               setModalOpen(true);
               setSubmitMessage(null);
               // Pre-fill with latest Não Pago Acumulado
@@ -871,7 +935,14 @@ export function StoreDetail() {
                     <div className="col-span-1 text-right text-xs text-slate-500">
                       {rev.pieces_count}
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-1 flex justify-end gap-1">
+                      <button
+                        onClick={() => handleEditRevenue(rev)}
+                        className="p-1 text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                       <button
                         onClick={() => handleDeleteRevenue(rev.id)}
                         className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
@@ -945,13 +1016,22 @@ export function StoreDetail() {
                       <span className="font-bold text-red-600">
                         - {fmt(exp.amount)}
                       </span>
-                      <button
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => handleEditExpense(exp)}
+                          className="p-1 text-slate-300 hover:text-blue-500"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          className="p-1 text-slate-300 hover:text-red-500"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -967,7 +1047,7 @@ export function StoreDetail() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
               <h3 className="text-lg font-bold text-slate-800">
-                Adicionar Informação
+                {editingEntryId ? "Editar Informação" : "Adicionar Informação"}
               </h3>
               <Button
                 variant="ghost"
@@ -1015,23 +1095,25 @@ export function StoreDetail() {
               <div className="flex rounded-lg overflow-hidden border border-slate-200">
                 <button
                   type="button"
+                  disabled={!!editingEntryId}
                   onClick={() => setEntryType("receita")}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
                     entryType === "receita"
                       ? "bg-emerald-600 text-white"
                       : "bg-white text-slate-500 hover:bg-slate-50"
-                  }`}
+                  } ${editingEntryId ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   Entrada
                 </button>
                 <button
                   type="button"
+                  disabled={!!editingEntryId}
                   onClick={() => setEntryType("despesa")}
                   className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
                     entryType === "despesa"
                       ? "bg-red-600 text-white"
                       : "bg-white text-slate-500 hover:bg-slate-50"
-                  }`}
+                  } ${editingEntryId ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
                   Despesa
                 </button>
@@ -1304,8 +1386,8 @@ export function StoreDetail() {
                 } text-white`}
               >
                 {isSubmitting
-                  ? "Registrando..."
-                  : `Registrar ${entryType === "receita" ? "Entrada" : "Despesa"}`}
+                  ? "Salvando..."
+                  : `${editingEntryId ? "Salvar" : "Registrar"} ${entryType === "receita" ? "Entrada" : "Despesa"}`}
               </Button>
             </form>
           </div>

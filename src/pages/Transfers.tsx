@@ -46,6 +46,7 @@ interface Transfer {
   amount: number;
   transfer_date: string;
   description: string | null;
+  category: string | null;
   created_at: string;
 }
 
@@ -140,10 +141,8 @@ export function Transfers() {
       alert("Selecione a loja de origem e destino.");
       return;
     }
-    if (formSource === formDestination) {
-      alert("A loja de origem e destino não podem ser as mesmas.");
-      return;
-    }
+
+    const isAplicacao = formSource === formDestination;
 
     const numericAmount = parseFloat(
       formAmount.replace(/\./g, "").replace(",", "."),
@@ -162,6 +161,7 @@ export function Transfers() {
           amount: numericAmount,
           transfer_date: formDate,
           description: formDesc || null,
+          category: isAplicacao ? "Aplicação" : null,
           created_by: session?.user.id,
         },
       ]);
@@ -274,6 +274,11 @@ export function Transfers() {
                   <div className="col-span-3 text-sm text-slate-600 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                     {getStoreName(t.destination_store_id)}
+                    {t.category === "Aplicação" && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 ml-1">
+                        Aplicação
+                      </span>
+                    )}
                   </div>
                   <div className="col-span-2 text-right font-bold text-slate-700">
                     {fmt(t.amount)}
@@ -357,13 +362,11 @@ export function Transfers() {
                   <SelectValue placeholder="Selecione o destino" />
                 </SelectTrigger>
                 <SelectContent>
-                  {stores
-                    .filter((s) => s.id !== formSource)
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
+                  {stores.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
