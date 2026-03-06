@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Plus, Trash2, Pencil } from "lucide-react";
 
 interface Store {
   id: string;
@@ -76,6 +76,10 @@ export function Transfers() {
     new Date().toISOString().split("T")[0],
   );
   const [formDesc, setFormDesc] = useState("");
+  const [formCategory, setFormCategory] = useState("Receita");
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(
+    null,
+  );
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -125,13 +129,31 @@ export function Transfers() {
   }, [transfers, selectedStore]);
 
   const handleOpenModal = () => {
+    setEditingTransferId(null);
     setFormAmount("");
     setFormDate(new Date().toISOString().split("T")[0]);
     setFormDesc("");
+    setFormCategory("Receita");
     if (role === "admin") {
       setFormSource("");
     }
     setFormDestination("");
+    setIsModalOpen(true);
+  };
+
+  const handleEditTransfer = (t: Transfer) => {
+    setEditingTransferId(t.id);
+    setFormSource(t.source_store_id);
+    setFormDestination(t.destination_store_id);
+    setFormAmount(
+      t.amount.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    );
+    setFormDate(t.transfer_date);
+    setFormDesc(t.description || "");
+    setFormCategory(t.category || "Receita");
     setIsModalOpen(true);
   };
 
@@ -141,8 +163,6 @@ export function Transfers() {
       alert("Selecione a loja de origem e destino.");
       return;
     }
-
-    const isAplicacao = formSource === formDestination;
 
     const numericAmount = parseFloat(
       formAmount.replace(/\./g, "").replace(",", "."),
@@ -154,24 +174,40 @@ export function Transfers() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from("transfers").insert([
-        {
-          source_store_id: formSource,
-          destination_store_id: formDestination,
-          amount: numericAmount,
-          transfer_date: formDate,
-          description: formDesc || null,
-          category: isAplicacao ? "Aplicação" : null,
-          created_by: session?.user.id,
-        },
-      ]);
-      if (error) throw error;
+      if (editingTransferId) {
+        const { error } = await supabase
+          .from("transfers")
+          .update({
+            source_store_id: formSource,
+            destination_store_id: formDestination,
+            amount: numericAmount,
+            transfer_date: formDate,
+            description: formDesc || null,
+            category: formCategory,
+          })
+          .eq("id", editingTransferId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("transfers").insert([
+          {
+            source_store_id: formSource,
+            destination_store_id: formDestination,
+            amount: numericAmount,
+            transfer_date: formDate,
+            description: formDesc || null,
+            category: formCategory,
+            created_by: session?.user.id,
+          },
+        ]);
+        if (error) throw error;
+      }
 
       fetchData();
+      setIsModalOpen(false);
     } catch (err) {
       const error = err as Error;
-      console.error("Error inserting transfer:", error);
-      alert(error.message || "Erro ao criar transferência.");
+      console.error("Error saving transfer:", error);
+      alert(error.message || "Erro ao salvar transferência.");
     } finally {
       setIsSubmitting(false);
     }
@@ -274,26 +310,41 @@ export function Transfers() {
                   <div className="col-span-3 text-sm text-slate-600 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
                     {getStoreName(t.destination_store_id)}
-                    {t.category === "Aplicação" && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 ml-1">
-                        Aplicação
-                      </span>
-                    )}
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 ${
+                        t.category === "Aplicação"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-orange-100 text-orange-700"
+                      }`}
+                    >
+                      {t.category || "Receita"}
+                    </span>
                   </div>
                   <div className="col-span-2 text-right font-bold text-slate-700">
                     {fmt(t.amount)}
                   </div>
                   <div className="col-span-2 flex justify-end">
                     {role === "admin" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-slate-400 hover:text-red-600 h-8 w-8 p-0"
-                        onClick={() => handleDelete(t.id)}
-                        title="Excluir Transferência"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-slate-400 hover:text-blue-600 h-8 w-8 p-0"
+                          onClick={() => handleEditTransfer(t)}
+                          title="Editar Transferência"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-slate-400 hover:text-red-600 h-8 w-8 p-0"
+                          onClick={() => handleDelete(t.id)}
+                          title="Excluir Transferência"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
                   </div>
                   {t.description && (
@@ -312,7 +363,11 @@ export function Transfers() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Nova Transferência</DialogTitle>
+            <DialogTitle>
+              {editingTransferId
+                ? "Editar Transferência"
+                : "Nova Transferência"}
+            </DialogTitle>
             <DialogDescription>
               Lance a movimentação isolada de caixa entre duas unidades.
             </DialogDescription>
@@ -367,6 +422,23 @@ export function Transfers() {
                       {s.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Tipo de Transferência</Label>
+              <Select
+                value={formCategory}
+                onValueChange={setFormCategory}
+                required
+              >
+                <SelectTrigger id="category">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Receita">Receita</SelectItem>
+                  <SelectItem value="Aplicação">Aplicação</SelectItem>
                 </SelectContent>
               </Select>
             </div>
