@@ -37,6 +37,7 @@ interface Expense {
   status: "paid" | "pending" | "late";
   observations?: string;
   store_name?: string;
+  payment_date?: string;
 }
 
 interface Revenue {

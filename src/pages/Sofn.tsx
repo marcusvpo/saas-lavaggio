@@ -52,6 +52,7 @@ interface Expense {
   status: "paid" | "pending" | "late";
   observations?: string;
   interest_amount?: number;
+  payment_date?: string;
 }
 
 const fmt = (v: number) =>
@@ -97,6 +98,7 @@ export function Sofn() {
   const [expStatus, setExpStatus] = useState("pending");
   const [expObs, setExpObs] = useState("");
   const [expInterest, setExpInterest] = useState("");
+  const [expPaymentDate, setExpPaymentDate] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{
@@ -223,6 +225,7 @@ export function Sofn() {
           status: expStatus,
           observations: expObs,
           interest_amount: parseFloat(expInterest) || 0,
+          payment_date: expPaymentDate || null,
         };
 
         if (editingEntryId) {
@@ -253,6 +256,7 @@ export function Sofn() {
       setExpStatus("pending");
       setExpObs("");
       setExpInterest("");
+      setExpPaymentDate("");
       setEditingEntryId(null);
       fetchData();
       setTimeout(() => setModalOpen(false), 1200);
@@ -293,6 +297,7 @@ export function Sofn() {
     setExpStatus(exp.status);
     setExpObs(exp.observations || "");
     setExpInterest(String(exp.interest_amount || 0));
+    setExpPaymentDate(exp.payment_date || "");
     setSubmitMessage(null);
     setModalOpen(true);
   };
@@ -384,6 +389,7 @@ export function Sofn() {
               setExpStatus("pending");
               setExpObs("");
               setExpInterest("");
+              setExpPaymentDate("");
 
               setModalOpen(true);
               setSubmitMessage(null);
@@ -837,6 +843,14 @@ export function Sofn() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
+                      <Label className="text-xs">Data de Pagamento</Label>
+                      <Input
+                        type="date"
+                        value={expPaymentDate}
+                        onChange={(e) => setExpPaymentDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
                       <Label className="text-xs">Juros (R$)</Label>
                       <Input
                         type="number"
@@ -846,14 +860,14 @@ export function Sofn() {
                         onChange={(e) => setExpInterest(e.target.value)}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Observações</Label>
-                      <Input
-                        placeholder="Opcional"
-                        value={expObs}
-                        onChange={(e) => setExpObs(e.target.value)}
-                      />
-                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Observações</Label>
+                    <Input
+                      placeholder="Opcional"
+                      value={expObs}
+                      onChange={(e) => setExpObs(e.target.value)}
+                    />
                   </div>
                 </>
               )}
