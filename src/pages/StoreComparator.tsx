@@ -57,8 +57,9 @@ export function StoreComparator() {
       const { data: expenses } = await supabase
         .from("expenses")
         .select("store_id, amount")
-        .gte("due_date", dateFilter.start)
-        .lte("due_date", dateFilter.end);
+        .or(
+          `and(payment_date.gte.${dateFilter.start},payment_date.lte.${dateFilter.end}),and(payment_date.is.null,due_date.gte.${dateFilter.start},due_date.lte.${dateFilter.end})`,
+        );
 
       const result: StoreData[] = stores.map((store) => {
         const storeRevs = (revenues || []).filter(
@@ -129,7 +130,7 @@ export function StoreComparator() {
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/calendar">
             <Button
@@ -142,16 +143,17 @@ export function StoreComparator() {
           </Link>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-purple-600" />
-              Comparador de Lojas
+              <BarChart3 className="w-8 h-8 text-purple-600 hidden sm:block" />
+              Comparador
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              {dateRangeLabel(dateRange)} — Compare o desempenho financeiro de
-              todas as unidades.
+              {dateRangeLabel(dateRange)}
             </p>
           </div>
         </div>
-        <DateFilter value={dateRange} onChange={setDateRange} />
+        <div className="w-full sm:w-auto">
+          <DateFilter value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {/* Global Summary */}
@@ -216,87 +218,114 @@ export function StoreComparator() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
-                  <th className="text-left pb-3 pr-4">Loja</th>
-                  <th className="text-right pb-3 px-2">Faturamento</th>
-                  <th className="w-[120px] pb-3 px-2"></th>
-                  <th className="text-right pb-3 px-2">Despesas</th>
-                  <th className="w-[120px] pb-3 px-2"></th>
-                  <th className="text-right pb-3 px-2">Lucro</th>
-                  <th className="text-right pb-3 px-2">Margem</th>
-                  <th className="text-right pb-3 pl-2">Peças</th>
-                </tr>
-              </thead>
-              <tbody>
-                {storesData
-                  .sort((a, b) => b.totalRevenue - a.totalRevenue)
-                  .map((store) => (
-                    <tr
-                      key={store.id}
-                      className="border-b last:border-0 hover:bg-slate-50 transition-colors"
+          <div className="space-y-4 md:space-y-2">
+            <div className="hidden md:grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b pb-2">
+              <div className="col-span-3">Loja</div>
+              <div className="col-span-2 text-right">Faturamento</div>
+              <div className="col-span-2 text-right">Despesas</div>
+              <div className="col-span-2 text-right">Lucro</div>
+              <div className="col-span-2 text-center">Margem</div>
+              <div className="col-span-1 text-right">Peças</div>
+            </div>
+
+            {storesData
+              .sort((a, b) => b.totalRevenue - a.totalRevenue)
+              .map((store) => (
+                <div
+                  key={store.id}
+                  className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 items-start md:items-center p-4 md:p-0 md:py-3 border md:border-b md:border-x-0 md:border-t-0 rounded-lg md:rounded-none md:last:border-0 hover:bg-slate-50 transition-colors"
+                >
+                  {/* Nome da Loja */}
+                  <div className="col-span-3 w-full border-b md:border-0 pb-2 md:pb-0 mb-2 md:mb-0">
+                    <Link
+                      to={`/stores/${store.id}`}
+                      className="text-base md:text-sm font-bold md:font-semibold text-slate-700 hover:text-blue-600 transition-colors"
                     >
-                      <td className="py-3 pr-4">
-                        <Link
-                          to={`/stores/${store.id}`}
-                          className="font-semibold text-slate-700 hover:text-blue-600 transition-colors"
-                        >
-                          {store.name}
-                        </Link>
-                      </td>
-                      <td className="text-right py-3 px-2 font-bold text-emerald-600">
+                      {store.name}
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:contents w-full gap-4">
+                    {/* Faturamento */}
+                    <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                      <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                        Faturamento
+                      </span>
+                      <span className="text-sm font-bold text-emerald-600">
                         {fmt(store.totalRevenue)}
-                      </td>
-                      <td className="py-3 px-2">
-                        <div className="w-full bg-emerald-100 rounded-full h-2">
-                          <div
-                            className="bg-emerald-500 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${(store.totalRevenue / maxRevenue) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </td>
-                      <td className="text-right py-3 px-2 font-bold text-red-600">
+                      </span>
+                      <div className="w-full bg-emerald-100 rounded-full h-1.5 mt-1 md:mt-2">
+                        <div
+                          className="bg-emerald-500 h-1.5 rounded-full transition-all"
+                          style={{
+                            width: `${(store.totalRevenue / maxRevenue) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Despesas */}
+                    <div className="md:col-span-2 flex flex-col md:block items-end md:items-start md:text-right">
+                      <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                        Despesas
+                      </span>
+                      <span className="text-sm font-bold text-red-600">
                         {fmt(store.totalExpense)}
-                      </td>
-                      <td className="py-3 px-2">
-                        <div className="w-full bg-red-100 rounded-full h-2">
-                          <div
-                            className="bg-red-500 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${(store.totalExpense / maxExpense) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </td>
-                      <td
-                        className={`text-right py-3 px-2 font-bold ${store.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                      </span>
+                      <div className="w-full bg-red-100 rounded-full h-1.5 mt-1 md:mt-2">
+                        <div
+                          className="bg-red-500 h-1.5 rounded-full transition-all"
+                          style={{
+                            width: `${(store.totalExpense / maxExpense) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 md:contents w-full gap-2 items-center border-t md:border-t-0 pt-3 md:pt-0 mt-2 md:mt-0">
+                    {/* Lucro */}
+                    <div className="col-span-1 flex flex-col md:block md:text-right">
+                      <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                        Lucro
+                      </span>
+                      <span
+                        className={`text-sm font-bold ${store.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}
                       >
                         {fmt(store.profit)}
-                      </td>
-                      <td className="text-right py-3 px-2">
-                        <span
-                          className={`text-xs font-bold px-2 py-1 rounded-full ${
-                            store.margin >= 30
-                              ? "bg-emerald-100 text-emerald-700"
-                              : store.margin >= 10
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {store.margin.toFixed(1)}%
-                        </span>
-                      </td>
-                      <td className="text-right py-3 pl-2 text-slate-600">
+                      </span>
+                    </div>
+
+                    {/* Margem */}
+                    <div className="col-span-1 flex flex-col md:block items-center">
+                      <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                        Margem
+                      </span>
+                      <span
+                        className={`text-xs font-bold px-2 py-1 rounded-full w-max ${
+                          store.margin >= 30
+                            ? "bg-emerald-100 text-emerald-700"
+                            : store.margin >= 10
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {store.margin.toFixed(1)}%
+                      </span>
+                    </div>
+
+                    {/* Peças */}
+                    <div className="col-span-1 flex flex-col md:block items-end md:text-right">
+                      <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                        Peças
+                      </span>
+                      <span className="text-sm text-slate-600 font-medium md:font-normal">
                         {store.totalPieces.toLocaleString("pt-BR")}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </CardContent>
       </Card>

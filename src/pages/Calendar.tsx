@@ -76,8 +76,9 @@ export function Calendar() {
       const { data: expData } = await supabase
         .from("expenses")
         .select("*")
-        .gte("due_date", dateFilter.start)
-        .lte("due_date", dateFilter.end)
+        .or(
+          `and(payment_date.gte.${dateFilter.start},payment_date.lte.${dateFilter.end}),and(payment_date.is.null,due_date.gte.${dateFilter.start},due_date.lte.${dateFilter.end})`,
+        )
         .order("due_date", { ascending: true });
       if (expData) setExpenses(expData);
 
@@ -119,7 +120,7 @@ export function Calendar() {
       : revenues.filter((r) => r.store_id === selectedStore);
 
   const dayExpenses = filteredExpenses.filter(
-    (e) => e.due_date === selectedDateStr,
+    (e) => (e.payment_date || e.due_date) === selectedDateStr,
   );
   const dayRevenues = filteredRevenues.filter(
     (r) => r.date === selectedDateStr,
@@ -133,7 +134,7 @@ export function Calendar() {
       map.set(key, (map.get(key) || 0) + Number(r.total_amount));
     }
     for (const e of filteredExpenses) {
-      const key = e.due_date;
+      const key = e.payment_date || e.due_date;
       map.set(key, (map.get(key) || 0) - Number(e.amount));
     }
     return map;
@@ -163,7 +164,7 @@ export function Calendar() {
       ...filteredExpenses.map((e) => ({
         ...e,
         entryType: "expense" as const,
-        sortDate: e.due_date,
+        sortDate: e.payment_date || e.due_date,
       })),
     ];
     return list.sort((a, b) => b.sortDate.localeCompare(a.sortDate));
@@ -171,7 +172,7 @@ export function Calendar() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
             Calendário Financeiro
@@ -180,9 +181,9 @@ export function Calendar() {
             {dateRangeLabel(dateRange)}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Todas as lojas" />
             </SelectTrigger>
             <SelectContent>
@@ -459,7 +460,8 @@ export function Calendar() {
                               </p>
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {new Date(
-                                  exp.due_date + "T12:00:00",
+                                  (exp.payment_date || exp.due_date) +
+                                    "T12:00:00",
                                 ).toLocaleDateString("pt-BR")}
                                 {exp.observations
                                   ? ` · ${exp.observations}`

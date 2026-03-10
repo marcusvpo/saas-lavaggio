@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export interface StoreMetric {
   id: string;
@@ -27,13 +27,22 @@ export interface DashboardMetrics {
 
 // Categories considered as "fixed costs"
 const FIXED_COST_CATEGORIES = [
-  'aluguel', 'folha', 'salário', 'salario', 'condomínio', 'condominio',
-  'contador', 'internet', 'telefone', 'seguro', 'iptu',
+  "aluguel",
+  "folha",
+  "salário",
+  "salario",
+  "condomínio",
+  "condominio",
+  "contador",
+  "internet",
+  "telefone",
+  "seguro",
+  "iptu",
 ];
 
 interface DateFilterParams {
   start: string; // YYYY-MM-DD
-  end: string;   // YYYY-MM-DD
+  end: string; // YYYY-MM-DD
 }
 
 export function useFetchDashboard(dateFilter?: DateFilterParams) {
@@ -56,19 +65,20 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
   useEffect(() => {
     async function loadData() {
       try {
-        setMetrics(prev => ({ ...prev, isLoading: true }));
+        setMetrics((prev) => ({ ...prev, isLoading: true }));
 
-        const { data: storesList } = await supabase.from('stores').select('*');
+        const { data: storesList } = await supabase.from("stores").select("*");
         const { data: revenues } = await supabase
-          .from('revenues')
-          .select('*')
-          .gte('date', startDate)
-          .lte('date', endDate);
+          .from("revenues")
+          .select("*")
+          .gte("date", startDate)
+          .lte("date", endDate);
         const { data: expenses } = await supabase
-          .from('expenses')
-          .select('*')
-          .gte('due_date', startDate)
-          .lte('due_date', endDate);
+          .from("expenses")
+          .select("*")
+          .or(
+            `and(payment_date.gte.${startDate},payment_date.lte.${endDate}),and(payment_date.is.null,due_date.gte.${startDate},due_date.lte.${endDate})`,
+          );
 
         const storesData = storesList || [];
         const revData = revenues || [];
@@ -81,10 +91,10 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
         let totalVariable = 0;
 
         // Classify costs
-        expData.forEach(e => {
-          const cat = (e.category || '').toLowerCase().trim();
+        expData.forEach((e) => {
+          const cat = (e.category || "").toLowerCase().trim();
           const amount = Number(e.amount || 0);
-          const isFixed = FIXED_COST_CATEGORIES.some(fc => cat.includes(fc));
+          const isFixed = FIXED_COST_CATEGORIES.some((fc) => cat.includes(fc));
           if (isFixed) {
             totalFixed += amount;
           } else {
@@ -97,11 +107,20 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
           const sRevs = revData.filter((r) => r.store_id === store.id);
           const sExps = expData.filter((e) => e.store_id === store.id);
 
-          const totalRev = sRevs.reduce((acc, r) => acc + Number(r.total_amount || 0), 0);
-          const totalExp = sExps.reduce((acc, e) => acc + Number(e.amount || 0), 0);
-          
-          totalPieces += sRevs.reduce((acc, r) => acc + Number(r.pieces_count || 0), 0);
-          
+          const totalRev = sRevs.reduce(
+            (acc, r) => acc + Number(r.total_amount || 0),
+            0,
+          );
+          const totalExp = sExps.reduce(
+            (acc, e) => acc + Number(e.amount || 0),
+            0,
+          );
+
+          totalPieces += sRevs.reduce(
+            (acc, r) => acc + Number(r.pieces_count || 0),
+            0,
+          );
+
           totalNetworkRevenue += totalRev;
           totalNetworkExpenses += totalExp;
 
@@ -114,7 +133,7 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
             id: store.id,
             name: store.name,
             type: store.type,
-            isSofn: store.type === 'sofn',
+            isSofn: store.type === "sofn",
             revenue: totalRev,
             expenses: totalExp,
             margin: Math.round(margin),
@@ -123,28 +142,47 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
         });
 
         // Calculate share
-        const storesExt = storeAggregations.map(s => ({
+        const storesExt = storeAggregations.map((s) => ({
           ...s,
-          share: totalNetworkRevenue > 0 ? Math.round((s.revenue / totalNetworkRevenue) * 100) : 0
+          share: totalNetworkRevenue > 0
+            ? Math.round((s.revenue / totalNetworkRevenue) * 100)
+            : 0,
         }));
 
         let netMargin = 0;
         if (totalNetworkRevenue > 0) {
-          netMargin = ((totalNetworkRevenue - totalNetworkExpenses) / totalNetworkRevenue) * 100;
+          netMargin =
+            ((totalNetworkRevenue - totalNetworkExpenses) /
+              totalNetworkRevenue) * 100;
         }
 
-        const avgTicket = totalPieces > 0 ? (totalNetworkRevenue / totalPieces) : 0;
+        const avgTicket = totalPieces > 0
+          ? (totalNetworkRevenue / totalPieces)
+          : 0;
 
         // Revenue history by month
         const historyMap: Record<number, number> = {};
-        revData.forEach(r => {
+        revData.forEach((r) => {
           if (r.date) {
             const m = new Date(r.date).getMonth();
             historyMap[m] = (historyMap[m] || 0) + Number(r.total_amount || 0);
           }
         });
-        
-        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+        const monthNames = [
+          "Jan",
+          "Fev",
+          "Mar",
+          "Abr",
+          "Mai",
+          "Jun",
+          "Jul",
+          "Ago",
+          "Set",
+          "Out",
+          "Nov",
+          "Dez",
+        ];
         const historyData = monthNames.map((month, i) => ({
           month,
           revenue: historyMap[i] || 0,
@@ -160,11 +198,11 @@ export function useFetchDashboard(dateFilter?: DateFilterParams) {
           averageMargin: isNaN(netMargin) ? 0 : Number(netMargin.toFixed(1)),
           averageTicket: isNaN(avgTicket) ? 0 : Number(avgTicket.toFixed(2)),
           revenueHistory: historyData,
-          isLoading: false
+          isLoading: false,
         });
       } catch (err) {
         console.error("Dashboard fetch error", err);
-        setMetrics(prev => ({ ...prev, isLoading: false }));
+        setMetrics((prev) => ({ ...prev, isLoading: false }));
       }
     }
 

@@ -146,10 +146,19 @@ export function Sofn() {
         .from("expenses")
         .select("*")
         .eq("store_id", SOFN_STORE_ID)
-        .gte("due_date", dateFilter.start)
-        .lte("due_date", dateFilter.end)
+        .or(
+          `and(payment_date.gte.${dateFilter.start},payment_date.lte.${dateFilter.end}),and(payment_date.is.null,due_date.gte.${dateFilter.start},due_date.lte.${dateFilter.end})`,
+        )
         .order("due_date", { ascending: false });
-      if (expData) setExpenses(expData);
+
+      if (expData) {
+        expData.sort((a, b) => {
+          const dateA = a.payment_date || a.due_date;
+          const dateB = b.payment_date || b.due_date;
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+        setExpenses(expData);
+      }
 
       const { data: latestAccumData } = await supabase
         .from("revenues")
@@ -589,7 +598,9 @@ export function Sofn() {
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-muted-foreground">
-                          {new Date(exp.due_date).toLocaleDateString("pt-BR", {
+                          {new Date(
+                            exp.payment_date || exp.due_date,
+                          ).toLocaleDateString("pt-BR", {
                             timeZone: "UTC",
                           })}
                         </p>

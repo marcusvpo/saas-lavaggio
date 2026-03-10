@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ArrowLeftRight, Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
 interface Store {
   id: string;
@@ -228,37 +228,36 @@ export function Transfers() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <ArrowLeftRight className="w-8 h-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
             Transferências
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Histórico inter-lojas - {dateRangeLabel(dateRange)}
+            {dateRangeLabel(dateRange)}
           </p>
         </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedStore} onValueChange={setSelectedStore}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Todas as lojas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as lojas</SelectItem>
-              {stores.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          {role === "admin" && (
+            <Select value={selectedStore} onValueChange={setSelectedStore}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filtrar por loja" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Lojas</SelectItem>
+                {stores.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           <DateFilter value={dateRange} onChange={setDateRange} />
-
           <Button
             onClick={handleOpenModal}
-            className="bg-primary hover:bg-primary/90 gap-2"
+            className="w-full sm:w-auto gap-2 bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
             Nova Transferência
@@ -284,77 +283,111 @@ export function Transfers() {
               Nenhuma transferência registrada para este período.
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+            <div className="overflow-hidden">
+              {/* Header (Desktop only) */}
+              <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
                 <div className="col-span-2">Data</div>
                 <div className="col-span-3">Origem</div>
                 <div className="col-span-3">Destino</div>
-                <div className="col-span-2 text-right">Valor</div>
-                <div className="col-span-2 text-right">Ação</div>
+                <div className="col-span-2 text-right">Valor / Tipo</div>
+                <div className="col-span-2"></div>
               </div>
 
-              {filteredTransfers.map((t) => (
-                <div
-                  key={t.id}
-                  className="grid grid-cols-12 gap-2 items-center px-4 py-3 border border-border rounded-lg bg-slate-50/50 hover:bg-slate-100 transition-colors"
-                >
-                  <div className="col-span-2 font-medium text-sm text-slate-700">
-                    {new Date(t.transfer_date + "T12:00:00").toLocaleDateString(
-                      "pt-BR",
-                    )}
-                  </div>
-                  <div className="col-span-3 text-sm text-slate-600 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-                    {getStoreName(t.source_store_id)}
-                  </div>
-                  <div className="col-span-3 text-sm text-slate-600 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                    {getStoreName(t.destination_store_id)}
-                    <span
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded ml-1 ${
-                        t.category === "Aplicação"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {t.category || "Receita"}
-                    </span>
-                  </div>
-                  <div className="col-span-2 text-right font-bold text-slate-700">
-                    {fmt(t.amount)}
-                  </div>
-                  <div className="col-span-2 flex justify-end">
-                    {role === "admin" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-slate-400 hover:text-blue-600 h-8 w-8 p-0"
+              <div className="divide-y divide-border">
+                {filteredTransfers.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex flex-col md:grid md:grid-cols-12 md:items-center gap-3 md:gap-2 px-4 py-4 md:py-3 border-b last:border-0 border-border bg-slate-50/50 hover:bg-slate-100 transition-colors"
+                  >
+                    <div className="flex justify-between items-center md:contents">
+                      <div className="md:col-span-2 font-medium text-slate-700 text-sm md:text-xs">
+                        {new Date(t.transfer_date).toLocaleDateString("pt-BR", {
+                          timeZone: "UTC",
+                        })}
+                      </div>
+                      <div className="md:hidden flex gap-2">
+                        {role === "admin" && (
+                          <button
+                            onClick={() => handleEditTransfer(t)}
+                            className="p-3 text-slate-400 hover:text-blue-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                            title="Editar"
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(t.id)}
+                          className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-3 text-sm text-slate-600 flex items-center gap-2">
+                      <span className="md:hidden font-semibold text-xs uppercase text-slate-500">
+                        De:
+                      </span>
+                      {getStoreName(t.source_store_id)}
+                    </div>
+
+                    <div className="md:col-span-3 text-sm text-slate-600 flex items-center gap-2">
+                      <span className="md:hidden font-semibold text-xs uppercase text-slate-500">
+                        Para:
+                      </span>
+                      {getStoreName(t.destination_store_id)}
+                    </div>
+
+                    <div className="md:col-span-2 flex items-center justify-between md:flex-col md:items-end md:justify-center border-t md:border-t-0 pt-2 md:pt-0 mt-1 md:mt-0">
+                      <span className="font-bold text-slate-700 text-base md:text-sm">
+                        {fmt(t.amount)}
+                      </span>
+                      {t.category === "Ajuste de Caixa" ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 mt-0 md:mt-1">
+                          Ajuste de Caixa
+                        </span>
+                      ) : (
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-0 md:mt-1 ${
+                            t.category === "Aplicação"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {t.category || "Receita"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="hidden md:flex md:col-span-2 justify-end gap-2">
+                      {role === "admin" && (
+                        <button
                           onClick={() => handleEditTransfer(t)}
-                          title="Editar Transferência"
+                          className="p-2 text-slate-400 hover:text-blue-500"
+                          title="Editar"
                         >
                           <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-slate-400 hover:text-red-600 h-8 w-8 p-0"
-                          onClick={() => handleDelete(t.id)}
-                          title="Excluir Transferência"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        className="p-2 text-slate-400 hover:text-red-500"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {t.description && (
+                      <div className="md:col-span-12 mt-1 md:mt-0 text-xs text-muted-foreground border-t md:border-t-0 pt-2 md:pt-0 border-slate-200">
+                        <span className="font-semibold">Obs:</span>{" "}
+                        {t.description}
+                      </div>
                     )}
                   </div>
-                  {t.description && (
-                    <div className="col-span-12 mt-1 text-xs text-muted-foreground border-t pt-2 border-slate-200">
-                      <span className="font-semibold">Obs:</span>{" "}
-                      {t.description}
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -429,21 +462,50 @@ export function Transfers() {
             <div className="space-y-2">
               <Label htmlFor="category">Tipo de Transferência</Label>
               <Select
-                value={formCategory}
+                value={formCategory === "Ajuste de Caixa" ? "" : formCategory}
                 onValueChange={setFormCategory}
-                required
+                disabled={formCategory === "Ajuste de Caixa"}
+                required={formCategory !== "Ajuste de Caixa"}
               >
                 <SelectTrigger id="category">
-                  <SelectValue placeholder="Selecione o tipo" />
+                  <SelectValue
+                    placeholder={
+                      formCategory === "Ajuste de Caixa"
+                        ? "Opção sobrescrita pelo checkbox..."
+                        : "Selecione o tipo"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Receita">Receita</SelectItem>
                   <SelectItem value="Aplicação">Aplicação</SelectItem>
                 </SelectContent>
               </Select>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="non_payment"
+                  checked={formCategory === "Ajuste de Caixa"}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setFormCategory("Ajuste de Caixa");
+                    } else {
+                      setFormCategory("Receita");
+                    }
+                  }}
+                  className="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary"
+                />
+                <Label
+                  htmlFor="non_payment"
+                  className="text-sm font-medium cursor-pointer text-slate-700"
+                >
+                  Ajuste de Caixa (Retirada sem pagamento)
+                </Label>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="amount">Valor</Label>
                 <Input

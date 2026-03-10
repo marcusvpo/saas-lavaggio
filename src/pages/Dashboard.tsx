@@ -85,7 +85,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
             Dashboard da Rede
@@ -94,7 +94,9 @@ export function Dashboard() {
             Visão geral — {dateRangeLabel(dateRange)}
           </p>
         </div>
-        <DateFilter value={dateRange} onChange={setDateRange} />
+        <div className="w-full sm:w-auto">
+          <DateFilter value={dateRange} onChange={setDateRange} />
+        </div>
       </div>
 
       {/* KPI Cards */}

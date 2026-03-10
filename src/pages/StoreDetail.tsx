@@ -18,7 +18,6 @@ import {
   Edit2,
   AlertCircle,
   Calendar,
-  Package,
   CreditCard,
   Wallet,
   Target,
@@ -219,10 +218,20 @@ export function StoreDetail() {
         .from("expenses")
         .select("*")
         .eq("store_id", id)
-        .gte("due_date", dateFilter.start)
-        .lte("due_date", dateFilter.end)
+        .or(
+          `and(payment_date.gte.${dateFilter.start},payment_date.lte.${dateFilter.end}),and(payment_date.is.null,due_date.gte.${dateFilter.start},due_date.lte.${dateFilter.end})`,
+        )
         .order("due_date", { ascending: false });
-      if (expData) setExpenses(expData);
+
+      if (expData) {
+        // Sort locally by effective date descending
+        expData.sort((a, b) => {
+          const dateA = a.payment_date || a.due_date;
+          const dateB = b.payment_date || b.due_date;
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+        setExpenses(expData);
+      }
 
       // Fetch latest nao_pago_acumulado (no date filter - always most recent)
       const { data: latestAccumData } = await supabase
@@ -569,50 +578,45 @@ export function StoreDetail() {
 
   return (
     <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
+      {/* Header section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Link to="/calendar">
             <Button
               variant="ghost"
-              size="sm"
-              asChild
-              className="text-muted-foreground -ml-3"
+              size="icon"
+              className="text-slate-400 hover:text-slate-600 shrink-0"
             >
-              <Link to="/">
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Voltar
-              </Link>
+              <ArrowLeft className="w-5 h-5" />
             </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground truncate">
+              {store?.name || "Carregando..."}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Visão detalhada — {dateRangeLabel(dateRange)}
+            </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-            {store?.name || "Loja Desconhecida"}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {dateRangeLabel(dateRange)}
-          </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           <DateFilter value={dateRange} onChange={setDateRange} />
-          <Button variant="outline" asChild className="gap-2">
-            <Link to={`/stores/${id}/inventory`}>
-              <Package className="w-4 h-4" />
-              Estoque
-            </Link>
-          </Button>
           <Button
             onClick={() => {
               setEditingEntryId(null);
-              setRevDate("");
+              setEntryType("receita");
+              setRevDate(new Date().toISOString().split("T")[0]);
               setRevPaidAmount("");
               setRevUnpaidAmount("");
               setRevPieces("");
+              setRevPaymentMethodId("");
+              setRevCategoryId("");
+              setRevNaoPagoAcumulado("");
               setRevObs("");
-              setRevCategoryId(undefined);
-              setRevPaymentMethodId(undefined);
-              setExpDate("");
+
+              setExpDate(new Date().toISOString().split("T")[0]);
               setExpAmount("");
-              setExpCategory(undefined);
+              setExpCategory("");
               setExpStatus("pending");
               setExpObs("");
               setExpInterest("");
@@ -902,8 +906,8 @@ export function StoreDetail() {
               </div>
             ) : (
               <div className="space-y-2">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-1 px-3 py-2 text-[10px] font-bold text-emerald-700 uppercase tracking-wider border-b border-emerald-200">
+                {/* Table Header (Desktop only) */}
+                <div className="hidden md:grid md:grid-cols-12 gap-1 px-3 py-2 text-[10px] font-bold text-emerald-700 uppercase tracking-wider border-b border-emerald-200">
                   <div className="col-span-2">Data</div>
                   <div className="col-span-2 text-right">Fatur.</div>
                   <div className="col-span-2 text-right">Receb.</div>
@@ -915,47 +919,92 @@ export function StoreDetail() {
                 {revenues.map((rev) => (
                   <div
                     key={rev.id}
-                    className="grid grid-cols-12 gap-1 items-center px-3 py-2 bg-emerald-50/50 border border-emerald-100 rounded-lg group hover:bg-emerald-50 transition-colors text-sm"
+                    className="flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-1 items-start md:items-center px-4 md:px-3 py-3 md:py-2 bg-emerald-50/50 border border-emerald-100 rounded-lg group hover:bg-emerald-50 transition-colors text-sm"
                   >
-                    <div className="col-span-2 text-xs text-slate-600 font-medium">
-                      {new Date(rev.date).toLocaleDateString("pt-BR", {
-                        timeZone: "UTC",
-                        day: "2-digit",
-                        month: "2-digit",
-                      })}
+                    <div className="flex w-full md:contents justify-between items-center mb-1 md:mb-0">
+                      <div className="md:col-span-2 text-sm md:text-xs text-slate-700 md:text-slate-600 font-bold md:font-medium">
+                        {new Date(rev.date).toLocaleDateString("pt-BR", {
+                          timeZone: "UTC",
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
+                      </div>
+                      <div className="md:hidden flex gap-2">
+                        <button
+                          onClick={() => handleEditRevenue(rev)}
+                          className="p-3 text-slate-400 hover:text-blue-500 bg-white rounded shadow-sm border border-slate-200"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRevenue(rev.id)}
+                          className="p-3 text-slate-400 hover:text-red-500 bg-white rounded shadow-sm border border-slate-200"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="col-span-2 text-right font-semibold text-emerald-700 text-xs">
-                      {fmt(Number(rev.total_amount))}
+
+                    <div className="grid grid-cols-2 md:contents w-full gap-2">
+                      <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                        <span className="text-[10px] uppercase text-emerald-700 font-bold md:hidden">
+                          Faturamento
+                        </span>
+                        <span className="font-semibold text-emerald-700 md:text-xs text-lg">
+                          {fmt(Number(rev.total_amount))}
+                        </span>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                        <span className="text-[10px] uppercase text-emerald-600 font-bold md:hidden">
+                          Recebido
+                        </span>
+                        <span className="text-emerald-600 md:text-xs font-medium">
+                          {fmt(Number(rev.paid_amount))}
+                        </span>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                        <span className="text-[10px] uppercase text-amber-600 font-bold md:hidden">
+                          Não Pago
+                        </span>
+                        <span className="text-amber-600 md:text-xs font-medium">
+                          {Number(rev.unpaid_amount) > 0
+                            ? fmt(Number(rev.unpaid_amount))
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                        <span className="text-[10px] uppercase text-amber-700 font-bold md:hidden">
+                          Acumulado
+                        </span>
+                        <span className="text-amber-700 md:text-xs font-bold">
+                          {fmt(revenuesWithAccum.get(rev.id) || 0)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="col-span-2 text-right text-xs text-emerald-600">
-                      {fmt(Number(rev.paid_amount))}
-                    </div>
-                    <div className="col-span-2 text-right text-xs text-amber-600 font-medium">
-                      {Number(rev.unpaid_amount) > 0
-                        ? fmt(Number(rev.unpaid_amount))
-                        : "—"}
-                    </div>
-                    <div className="col-span-2 text-right text-xs text-amber-700 font-bold">
-                      {fmt(revenuesWithAccum.get(rev.id) || 0)}
-                    </div>
-                    <div className="col-span-1 text-right text-xs text-slate-500">
-                      {rev.pieces_count}
-                    </div>
-                    <div className="col-span-1 flex justify-end gap-1">
-                      <button
-                        onClick={() => handleEditRevenue(rev)}
-                        className="p-1 text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRevenue(rev.id)}
-                        className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+
+                    <div className="w-full md:contents flex items-center justify-between mt-2 pt-2 border-t md:border-0 border-emerald-100 md:mt-0 md:pt-0">
+                      <div className="md:col-span-1 md:text-right text-xs text-slate-500 flex items-center gap-1">
+                        <span className="md:hidden">Peças: </span>
+                        {rev.pieces_count}
+                      </div>
+                      <div className="hidden md:flex md:col-span-1 justify-end gap-1">
+                        <button
+                          onClick={() => handleEditRevenue(rev)}
+                          className="p-1 text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRevenue(rev.id)}
+                          className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -983,7 +1032,7 @@ export function StoreDetail() {
                 {expenses.map((exp) => (
                   <div
                     key={exp.id}
-                    className={`flex items-center justify-between p-3 border rounded-lg group hover:bg-red-50/50 transition-colors ${
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-3 border rounded-lg group hover:bg-red-50/50 transition-colors gap-3 sm:gap-0 ${
                       exp.status === "late"
                         ? "border-red-300 bg-red-50/50"
                         : exp.status === "pending"
@@ -991,51 +1040,75 @@ export function StoreDetail() {
                           : "border-red-100 bg-red-50/20"
                     }`}
                   >
-                    <div>
-                      <p className="font-medium text-sm text-slate-700">
-                        {exp.category}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(exp.due_date).toLocaleDateString("pt-BR", {
-                            timeZone: "UTC",
-                          })}
+                    <div className="flex justify-between w-full sm:w-auto items-start">
+                      <div>
+                        <p className="font-bold sm:font-medium text-base sm:text-sm text-slate-700">
+                          {exp.category}
                         </p>
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            exp.status === "paid"
-                              ? "bg-emerald-100 text-emerald-700"
+                        <div className="flex items-center gap-2 mt-1 sm:mt-0.5">
+                          <p className="text-sm sm:text-xs text-muted-foreground">
+                            {new Date(
+                              exp.payment_date || exp.due_date,
+                            ).toLocaleDateString("pt-BR", {
+                              timeZone: "UTC",
+                            })}
+                          </p>
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              exp.status === "paid"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : exp.status === "pending"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {exp.status === "paid"
+                              ? "Pago"
                               : exp.status === "pending"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {exp.status === "paid"
-                            ? "Pago"
-                            : exp.status === "pending"
-                              ? "Pendente"
-                              : "Atrasado"}
-                        </span>
+                                ? "Pendente"
+                                : "Atrasado"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-red-600">
-                        - {fmt(exp.amount)}
-                      </span>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="sm:hidden flex items-center gap-2 pt-2">
                         <button
                           onClick={() => handleEditExpense(exp)}
-                          className="p-1 text-slate-300 hover:text-blue-500"
+                          className="p-2 sm:p-2 text-slate-400 hover:text-blue-500 bg-white border border-slate-200 rounded-md shadow-sm h-10 w-10 flex items-center justify-center"
                           title="Editar"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteExpense(exp.id)}
-                          className="p-1 text-slate-300 hover:text-red-500"
+                          className="p-2 sm:p-2 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded-md shadow-sm h-10 w-10 flex items-center justify-center"
                           title="Excluir"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-0 border-slate-200 sm:border-transparent mt-1 sm:mt-0">
+                      <span className="sm:hidden text-xs uppercase text-slate-500 font-bold">
+                        Valor
+                      </span>
+                      <span className="font-bold text-red-600 md:text-base text-lg">
+                        - {fmt(exp.amount)}
+                      </span>
+                      <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                          onClick={() => handleEditExpense(exp)}
+                          className="p-1.5 text-slate-400 hover:text-blue-500"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -1136,7 +1209,7 @@ export function StoreDetail() {
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Recebido Dia (R$) *</Label>
                       <Input
@@ -1171,7 +1244,7 @@ export function StoreDetail() {
                       Recebido Dia + Não Pago Dia (calculado automaticamente)
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Categoria de Entrada</Label>
                       <Select
@@ -1292,7 +1365,7 @@ export function StoreDetail() {
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Categoria *</Label>
                       <Select
@@ -1335,7 +1408,7 @@ export function StoreDetail() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Vencimento *</Label>
                       <Input
@@ -1359,7 +1432,7 @@ export function StoreDetail() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Data de Pagamento</Label>
                       <Input

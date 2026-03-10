@@ -980,9 +980,9 @@ export function Settings() {
                         começar.
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {/* Table header */}
-                        <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                      <div className="space-y-3 md:space-y-2 mt-4 md:mt-2">
+                        {/* Table header (Desktop) */}
+                        <div className="hidden md:grid md:grid-cols-12 md:gap-2 md:px-3 md:py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
                           <div className="col-span-3">Loja / Escopo</div>
                           <div className="col-span-3">Tipo</div>
                           <div className="col-span-2 text-right">Valor</div>
@@ -992,36 +992,67 @@ export function Settings() {
                         {goals.map((goal) => (
                           <div
                             key={goal.id}
-                            className="grid grid-cols-12 gap-2 items-center px-3 py-3 border rounded-lg hover:bg-slate-50 transition-colors group"
+                            className="flex flex-col md:grid md:grid-cols-12 gap-2 md:items-center p-4 md:px-3 md:py-3 border border-border rounded-lg bg-slate-50/50 hover:bg-slate-100 transition-colors group"
                           >
-                            <div className="col-span-3">
-                              <span
-                                className={`text-sm font-medium ${goal.store_id ? "text-blue-700" : "text-purple-700"}`}
-                              >
-                                {goal.store_name}
-                              </span>
+                            <div className="flex justify-between items-center md:contents">
+                              <div className="md:col-span-3">
+                                <span
+                                  className={`text-base md:text-sm font-bold md:font-medium ${goal.store_id ? "text-blue-700" : "text-purple-700"}`}
+                                >
+                                  {goal.store_name}
+                                </span>
+                              </div>
+                              <div className="md:hidden flex gap-2">
+                                <button
+                                  onClick={() => openGoalModal(goal)}
+                                  className="p-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                  title="Editar"
+                                >
+                                  <Pencil className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteGoal(goal.id)}
+                                  className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="col-span-3">
-                              <span className="text-sm text-slate-600">
-                                {GOAL_LABELS[goal.type] || goal.type}
-                              </span>
+
+                            <div className="grid grid-cols-2 md:contents w-full gap-2 mt-1 md:mt-0">
+                              <div className="md:col-span-3 flex flex-col md:block">
+                                <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden">
+                                  Tipo
+                                </span>
+                                <span className="text-sm font-medium md:text-xs text-slate-600">
+                                  {GOAL_LABELS[goal.type] || goal.type}
+                                </span>
+                              </div>
+                              <div className="md:col-span-2 flex flex-col md:block md:text-right">
+                                <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden">
+                                  Valor
+                                </span>
+                                <span className="text-lg md:text-sm font-bold text-emerald-600">
+                                  {goal.type === "margin_target"
+                                    ? `${goal.value}%`
+                                    : fmt(goal.value)}
+                                </span>
+                              </div>
                             </div>
-                            <div className="col-span-2 text-right">
-                              <span className="text-sm font-bold text-emerald-600">
-                                {goal.type === "margin_target"
-                                  ? `${goal.value}%`
-                                  : fmt(goal.value)}
+
+                            <div className="md:col-span-2 flex items-center mt-2 md:mt-0 pt-2 border-t md:border-0 border-slate-200">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mr-2">
+                                Período:
                               </span>
-                            </div>
-                            <div className="col-span-2">
-                              <span className="text-xs text-slate-500">
+                              <span className="text-xs text-slate-500 font-medium md:font-normal">
                                 {goal.month
                                   ? `${MONTHS[goal.month - 1]}`
                                   : "Geral"}{" "}
                                 {goal.year || ""}
                               </span>
                             </div>
-                            <div className="col-span-2 flex justify-end gap-1">
+                            <div className="hidden md:flex md:col-span-2 justify-end gap-1">
                               <button
                                 onClick={() => openGoalModal(goal)}
                                 className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
@@ -1065,9 +1096,9 @@ export function Settings() {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      {/* Table header */}
-                      <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                    <div className="space-y-3 md:space-y-2 mt-4 md:mt-2">
+                      {/* Table header (Desktop) */}
+                      <div className="hidden md:grid md:grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
                         <div className="col-span-4">Nome</div>
                         <div className="col-span-3">Tipo</div>
                         <div className="col-span-2">Status</div>
@@ -1076,37 +1107,65 @@ export function Settings() {
                       {expCategories.map((cat) => (
                         <div
                           key={cat.id}
-                          className={`grid grid-cols-12 gap-2 items-center px-3 py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!cat.is_active ? "opacity-50" : ""}`}
+                          className={`flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 items-start md:items-center p-4 md:px-3 md:py-3 border border-border rounded-lg bg-slate-50/50 hover:bg-slate-100 transition-colors group ${!cat.is_active ? "opacity-60 grayscale-[50%]" : ""}`}
                         >
-                          <div className="col-span-4">
-                            <span className="text-sm font-medium text-slate-700">
-                              {cat.name}
-                            </span>
+                          <div className="flex w-full md:contents justify-between items-center mb-1 md:mb-0">
+                            <div className="md:col-span-4">
+                              <span className="text-base md:text-sm font-bold md:font-medium text-slate-700">
+                                {cat.name}
+                              </span>
+                            </div>
+                            <div className="md:hidden flex gap-2">
+                              <button
+                                onClick={() => openCatModal(cat)}
+                                className="p-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                title="Editar"
+                              >
+                                <Pencil className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCat(cat.id)}
+                                className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="col-span-3">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                                cat.type === "fixed"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : "bg-cyan-100 text-cyan-700"
-                              }`}
-                            >
-                              {cat.type === "fixed" ? "Fixo" : "Variável"}
-                            </span>
+
+                          <div className="grid grid-cols-2 md:contents w-full gap-2 items-center">
+                            <div className="md:col-span-3 flex flex-col md:block">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Tipo
+                              </span>
+                              <span
+                                className={`text-xs md:text-[10px] font-bold px-2 py-1 rounded-full w-max ${
+                                  cat.type === "fixed"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-cyan-100 text-cyan-700"
+                                }`}
+                              >
+                                {cat.type === "fixed" ? "Fixo" : "Variável"}
+                              </span>
+                            </div>
+                            <div className="md:col-span-2 flex flex-col md:block items-end md:items-start">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Status
+                              </span>
+                              <button
+                                onClick={() => handleToggleCat(cat)}
+                                className={`text-xs md:text-[10px] font-bold px-3 md:px-2 py-1.5 md:py-1 rounded-full transition-colors w-max shadow-sm md:shadow-none ${
+                                  cat.is_active
+                                    ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                    : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+                                }`}
+                              >
+                                {cat.is_active ? "Ativo" : "Inativo"}
+                              </button>
+                            </div>
                           </div>
-                          <div className="col-span-2">
-                            <button
-                              onClick={() => handleToggleCat(cat)}
-                              className={`text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${
-                                cat.is_active
-                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                              }`}
-                            >
-                              {cat.is_active ? "Ativo" : "Inativo"}
-                            </button>
-                          </div>
-                          <div className="col-span-3 flex justify-end gap-1">
+
+                          <div className="hidden md:flex md:col-span-3 justify-end gap-1">
                             <button
                               onClick={() => openCatModal(cat)}
                               className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
@@ -1198,17 +1257,17 @@ export function Settings() {
                             <div className="col-span-3 flex justify-end gap-1">
                               <button
                                 onClick={() => openRevCatModal(cat)}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
+                                className="p-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
                                 title="Editar"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
+                                <Pencil className="w-5 h-5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteRevCat(cat.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
                                 title="Excluir"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-5 h-5" />
                               </button>
                             </div>
                           </div>
@@ -1294,8 +1353,8 @@ export function Settings() {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                    <div className="space-y-3 md:space-y-2 mt-4 md:mt-2">
+                      <div className="hidden md:grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
                         <div className="col-span-3">Nome</div>
                         <div className="col-span-2">Tipo</div>
                         <div className="col-span-2 text-right">Taxa (%)</div>
@@ -1306,39 +1365,78 @@ export function Settings() {
                       {paymentMethods.map((pm) => (
                         <div
                           key={pm.id}
-                          className={`grid grid-cols-12 gap-2 items-center px-3 py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!pm.is_active ? "opacity-50" : ""}`}
+                          className={`flex flex-col md:grid grid-cols-12 gap-3 md:gap-2 items-start md:items-center p-4 md:px-3 md:py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!pm.is_active ? "opacity-60 grayscale-[50%]" : ""}`}
                         >
-                          <div className="col-span-3">
-                            <span className="text-sm font-medium text-slate-700">
-                              {pm.name}
-                            </span>
+                          <div className="flex w-full md:contents justify-between items-center mb-1 md:mb-0">
+                            <div className="md:col-span-3">
+                              <span className="text-base md:text-sm font-bold md:font-medium text-slate-700">
+                                {pm.name}
+                              </span>
+                            </div>
+                            <div className="md:hidden flex gap-2">
+                              <button
+                                onClick={() => openPmModal(pm)}
+                                className="p-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                title="Editar"
+                              >
+                                <Pencil className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeletePm(pm.id)}
+                                className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                title="Excluir"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="col-span-2">
-                            <span
-                              className={`text-[10px] font-bold px-2 py-1 rounded-full ${pm.type === "pix" ? "bg-emerald-100 text-emerald-700" : pm.type === "debit" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
-                            >
-                              {PM_TYPE_LABELS[pm.type] || pm.type}
-                            </span>
+
+                          <div className="grid grid-cols-2 md:contents w-full gap-2 items-center">
+                            <div className="md:col-span-2 flex flex-col md:block">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Tipo
+                              </span>
+                              <span
+                                className={`text-xs md:text-[10px] font-bold px-2 py-1 rounded-full w-max ${pm.type === "pix" ? "bg-emerald-100 text-emerald-700" : pm.type === "debit" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
+                              >
+                                {PM_TYPE_LABELS[pm.type] || pm.type}
+                              </span>
+                            </div>
+
+                            <div className="md:col-span-2 flex flex-col md:block items-end md:text-right">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Taxa
+                              </span>
+                              <span className="text-lg md:text-sm font-bold text-slate-700">
+                                {pm.fee_percentage}%
+                              </span>
+                            </div>
                           </div>
-                          <div className="col-span-2 text-right">
-                            <span className="text-sm font-bold text-slate-700">
-                              {pm.fee_percentage}%
-                            </span>
+
+                          <div className="grid grid-cols-2 md:contents w-full gap-2 items-center border-t md:border-t-0 pt-2 md:pt-0 mt-2 md:mt-0">
+                            <div className="col-span-1 flex flex-col md:block md:text-right">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Parcelas
+                              </span>
+                              <span className="text-sm font-medium md:text-xs text-slate-600">
+                                {pm.installments}x
+                              </span>
+                            </div>
+
+                            <div className="col-span-1 flex flex-col md:block items-end md:items-start">
+                              <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                Status
+                              </span>
+                              <button
+                                onClick={() => handleTogglePm(pm)}
+                                className={`text-xs md:text-[10px] font-bold px-3 md:px-2 py-1.5 md:py-1 rounded-full transition-colors w-max shadow-sm md:shadow-none ${pm.is_active ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
+                              >
+                                {pm.is_active ? "Ativo" : "Inativo"}
+                              </button>
+                            </div>
                           </div>
-                          <div className="col-span-1 text-right">
-                            <span className="text-sm text-slate-600">
-                              {pm.installments}x
-                            </span>
-                          </div>
-                          <div className="col-span-2">
-                            <button
-                              onClick={() => handleTogglePm(pm)}
-                              className={`text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${pm.is_active ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
-                            >
-                              {pm.is_active ? "Ativo" : "Inativo"}
-                            </button>
-                          </div>
-                          <div className="col-span-2 flex justify-end gap-1">
+
+                          <div className="hidden md:flex md:col-span-2 justify-end gap-1">
                             <button
                               onClick={() => openPmModal(pm)}
                               className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
@@ -1455,11 +1553,11 @@ export function Settings() {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
-                        <div className="col-span-5">Nome</div>
-                        <div className="col-span-3">Status</div>
-                        <div className="col-span-4 text-right">Ações</div>
+                    <div className="space-y-3 md:space-y-2 mt-4 md:mt-2">
+                      <div className="hidden md:grid md:grid-cols-12 gap-2 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b">
+                        <div className="col-span-7">Nome</div>
+                        <div className="col-span-2">Status</div>
+                        <div className="col-span-3 text-right">Ações</div>
                       </div>
                       {invCategories.length === 0 ? (
                         <div className="text-sm text-muted-foreground flex items-center justify-center p-10 border border-dashed rounded-lg">
@@ -1469,22 +1567,46 @@ export function Settings() {
                         invCategories.map((cat) => (
                           <div
                             key={cat.id}
-                            className={`grid grid-cols-12 gap-2 items-center px-3 py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!cat.is_active ? "opacity-50" : ""}`}
+                            className={`flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-2 items-start md:items-center p-4 md:px-3 md:py-3 border rounded-lg hover:bg-slate-50 transition-colors group ${!cat.is_active ? "opacity-60 grayscale-[50%]" : ""}`}
                           >
-                            <div className="col-span-5">
-                              <span className="text-sm font-medium text-slate-700">
-                                {cat.name}
-                              </span>
+                            <div className="flex w-full md:contents justify-between items-center mb-1 md:mb-0">
+                              <div className="md:col-span-7">
+                                <span className="text-base md:text-sm font-bold md:font-medium text-slate-700">
+                                  {cat.name}
+                                </span>
+                              </div>
+                              <div className="md:hidden flex gap-2">
+                                <button
+                                  onClick={() => openInvCatModal(cat)}
+                                  className="p-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                  title="Editar"
+                                >
+                                  <Pencil className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteInvCat(cat.id)}
+                                  className="p-3 text-slate-400 hover:text-red-500 bg-white border border-slate-200 rounded shadow-sm h-10 w-10 flex items-center justify-center"
+                                  title="Excluir"
+                                >
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="col-span-3">
-                              <button
-                                onClick={() => handleToggleInvCat(cat)}
-                                className={`text-[10px] font-bold px-2 py-1 rounded-full transition-colors ${cat.is_active ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
-                              >
-                                {cat.is_active ? "Ativo" : "Inativo"}
-                              </button>
+
+                            <div className="md:col-span-2 md:contents w-full">
+                              <div className="flex flex-col md:block">
+                                <span className="text-[10px] uppercase text-slate-500 font-bold md:hidden mb-1">
+                                  Status
+                                </span>
+                                <button
+                                  onClick={() => handleToggleInvCat(cat)}
+                                  className={`text-xs md:text-[10px] font-bold px-3 md:px-2 py-1.5 md:py-1 rounded-full w-max transition-colors shadow-sm md:shadow-none ${cat.is_active ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
+                                >
+                                  {cat.is_active ? "Ativo" : "Inativo"}
+                                </button>
+                              </div>
                             </div>
-                            <div className="col-span-4 flex justify-end gap-1">
+                            <div className="hidden md:flex md:col-span-3 justify-end gap-1">
                               <button
                                 onClick={() => openInvCatModal(cat)}
                                 className="p-1.5 text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all"
@@ -1578,7 +1700,7 @@ export function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">
                     Valor {goalForm.type === "margin_target" ? "(%)" : "(R$)"} *
@@ -1801,7 +1923,7 @@ export function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Taxa (%) *</Label>
                   <Input
